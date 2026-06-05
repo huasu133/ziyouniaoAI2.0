@@ -199,7 +199,7 @@
 
     // ─── 历史提问弹出层 ──────────────────────────
     /**
-     * 渲染历史弹出层
+     * 渲染历史弹出层 — 列出所有用户提问
      */
     renderHistoryPopup: function () {
       var list = document.getElementById('history-list');
@@ -213,30 +213,46 @@
         return;
       }
 
-      var html = '';
-      for (var i = tabs.length - 1; i >= 0; i--) {
+      // 从所有对话中提取用户提问，按时间倒序排列
+      var allQuestions = [];
+      for (var i = 0; i < tabs.length; i++) {
         var tab = tabs[i];
-        var isActive = tab.id === activeTab;
         var messages = Storage.getTabMessages(tab.id) || [];
-        var lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-        var preview = lastMsg ? Utils.getMessagePreview(lastMsg.content) : '';
+        for (var j = 0; j < messages.length; j++) {
+          var msg = messages[j];
+          if (msg.role === 'user') {
+            allQuestions.push({
+              tabId: tab.id,
+              tabTitle: tab.title || '新对话',
+              question: msg.content,
+              time: msg.createdAt || msg.timestamp || tab.updatedAt,
+            });
+          }
+        }
+      }
+
+      // 按时间倒序排列
+      allQuestions.sort(function (a, b) { return (b.time || 0) - (a.time || 0); });
+
+      // 最多显示 100 条，避免太多
+      if (allQuestions.length > 100) allQuestions = allQuestions.slice(0, 100);
+
+      var html = '';
+      for (var k = 0; k < allQuestions.length; k++) {
+        var q = allQuestions[k];
+        var isActive = q.tabId === activeTab;
+        var questionText = Utils.getMessagePreview(q.question) || '(空)';
 
         html += '' +
-          '<div class="conversation-item' + (isActive ? ' active' : '') + '" data-tab-id="' + Utils.escapeHTML(tab.id) + '">' +
-            '<div class="conversation-item-icon">' +
-              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
-            '</div>' +
-            '<div class="conversation-item-info">' +
-              '<div class="conversation-item-title">' + Utils.escapeHTML(tab.title || '新对话') + '</div>' +
-              '<div class="conversation-item-preview">' + Utils.escapeHTML(preview || '空对话') + '</div>' +
-            '</div>' +
+          '<div class="history-question' + (isActive ? ' active' : '') + '" data-tab-id="' + Utils.escapeHTML(q.tabId) + '">' +
+            '<div class="history-question-text">' + Utils.escapeHTML(questionText) + '</div>' +
           '</div>';
       }
       list.innerHTML = html;
 
       // 绑定点击事件
       var self = this;
-      list.querySelectorAll('.conversation-item').forEach(function (el) {
+      list.querySelectorAll('.history-question').forEach(function (el) {
         el.addEventListener('click', function () {
           var tabId = el.getAttribute('data-tab-id');
           Tabs.switchTab(tabId);
@@ -272,12 +288,12 @@
     filterHistory: function (query) {
       var list = document.getElementById('history-list');
       if (!list) return;
-      var items = list.querySelectorAll('.conversation-item');
+      var items = list.querySelectorAll('.history-question');
       var q = (query || '').toLowerCase().trim();
       items.forEach(function (item) {
-        var titleEl = item.querySelector('.conversation-item-title');
-        var title = titleEl ? titleEl.textContent.toLowerCase() : '';
-        item.style.display = (!q || title.indexOf(q) !== -1) ? '' : 'none';
+        var textEl = item.querySelector('.history-question-text');
+        var text = textEl ? textEl.textContent.toLowerCase() : '';
+        item.style.display = (!q || text.indexOf(q) !== -1) ? '' : 'none';
       });
     },
 
