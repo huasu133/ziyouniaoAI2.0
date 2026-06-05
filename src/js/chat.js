@@ -165,11 +165,32 @@
 
       this.isGenerating = true;
 
-      // 准备消息列表
+      // 准备消息列表（支持图片：检测 ![]() 语法并转换为多模态 content 格式）
       var apiMessages = this.messages
         .filter(function (m) { return !m._placeholder; })
         .map(function (m) {
-          return { role: m.role, content: m.content };
+          // 检测是否包含图片 Markdown
+          var content = m.content;
+          if (typeof content === 'string' && /!\[.*?\]\(data:image/.test(content)) {
+            var parts = [];
+            var lastIdx = 0;
+            var imgRegex = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g;
+            var match;
+            while ((match = imgRegex.exec(content)) !== null) {
+              // 图片前面的文本
+              if (match.index > lastIdx) {
+                parts.push({ type: 'text', text: content.slice(lastIdx, match.index) });
+              }
+              parts.push({ type: 'image_url', image_url: { url: match[2] } });
+              lastIdx = match.index + match[0].length;
+            }
+            // 剩余的文本
+            if (lastIdx < content.length) {
+              parts.push({ type: 'text', text: content.slice(lastIdx) });
+            }
+            return { role: m.role, content: parts };
+          }
+          return { role: m.role, content: content };
         });
 
       // 风格预设 — 首次对话时注入 system prompt
@@ -661,6 +682,12 @@
 
       // 水平线 ---
       html = html.replace(/^-{3,}$/gm, '<hr>');
+
+      // 图片 ![alt](url) — 必须在链接之前处理，避免 `!` 被链接正则误吞
+      html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function (match, alt, url) {
+        var safeUrl = Utils.escapeHTML(url);
+        return '<img src="' + safeUrl + '" alt="' + Utils.escapeHTML(alt || '图片') + '" style="max-width:100%;border-radius:6px;margin:4px 0;">';
+      });
 
       // 链接 [text](url) — 仅允许 http/https/mailto/data 协议
       html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (match, text, url) {

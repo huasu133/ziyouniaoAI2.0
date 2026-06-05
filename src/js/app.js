@@ -388,14 +388,17 @@
         for (var i = 0; i < items.length; i++) {
           if (items[i].type.indexOf('image/') === 0) {
             var file = items[i].getAsFile();
-            if (!file || file.size > 10 * 1024 * 1024) continue; // P0-6: 10MB上限
-            var reader = new FileReader();
-            reader.onload = function () {
-              var input = document.getElementById('message-input');
-              if (input) input.value += '\n![图片](' + reader.result + ')\n';
-            };
-            reader.onerror = function () {};
-            reader.readAsDataURL(file);
+            if (!file || file.size > 10 * 1024 * 1024) continue;
+            (function (f) {
+              var reader = new FileReader();
+              reader.onload = function () {
+                var input = document.getElementById('message-input');
+                if (input) input.value += '\n![图片](' + reader.result + ')\n';
+              };
+              reader.onerror = function () {};
+              reader.readAsDataURL(f);
+            })(file);
+            break;
           }
         }
       });
