@@ -62,7 +62,7 @@
         createdAt: Date.now(),
         updatedAt: Date.now(),
         messageCount: 0,
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
       };
       this.tabs.push(tab);
       this.activeTabId = tab.id;
@@ -80,7 +80,7 @@
         createdAt: Date.now(),
         updatedAt: Date.now(),
         messageCount: 0,
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
       };
       this.tabs.push(tab);
       this.activeTabId = tab.id;

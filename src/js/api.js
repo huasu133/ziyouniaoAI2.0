@@ -25,7 +25,7 @@
      * @returns {AbortController} - 用于手动停止
      */
     sendMessage: function (messages, options) {
-      var model = options.model || 'deepseek-chat';
+      var model = options.model || 'deepseek-v4-flash';
       var temperature = options.temperature !== undefined ? options.temperature : 0.7;
       var maxTokens = options.maxTokens || 4096;
       var onMessage = options.onMessage || function () {};
@@ -192,8 +192,8 @@
         .catch(function () {
           // 如果 API 不支持列表，返回默认
           return [
-            { id: 'deepseek-chat' },
-            { id: 'deepseek-reasoner' },
+            { id: 'deepseek-v4-flash' },
+            { id: 'deepseek-v4-flash-reasoner' },
           ];
         });
     },

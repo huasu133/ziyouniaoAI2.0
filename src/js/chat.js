@@ -135,7 +135,7 @@
 
       // 获取当前模型
       var modelSelect = document.getElementById('model-select');
-      var model = modelSelect ? modelSelect.value : 'deepseek-chat';
+      var model = modelSelect ? modelSelect.value : 'deepseek-v4-flash';
       var settings = Storage.getSettings();
 
       // 添加用户消息
@@ -758,7 +758,7 @@
         '## 分析\n列出关键决策和变化\n' +
         '## 推荐\n2-3条下一步行动';
       var modelSelect = document.querySelector('#model-select');
-      var model = modelSelect ? modelSelect.value : 'deepseek-chat';
+      var model = modelSelect ? modelSelect.value : 'deepseek-v4-flash';
       var self = this;
       var apiKey = Storage.getSettings().deepseekKey || '';
       fetch('https://api.deepseek.com/v1/chat/completions', {

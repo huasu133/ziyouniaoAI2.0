@@ -84,7 +84,7 @@
       if (maxTokens) maxTokens.value = settings.maxTokens || 4096;
 
       var modelSelect = document.getElementById('model-select');
-      if (modelSelect) modelSelect.value = settings.model || 'deepseek-chat';
+      if (modelSelect) modelSelect.value = settings.model || 'deepseek-v4-flash';
 
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) styleSelect.value = settings.style || '';

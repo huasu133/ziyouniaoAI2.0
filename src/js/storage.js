@@ -147,7 +147,7 @@
         fontSize: 'medium',
         temperature: 0.7,
         maxTokens: 4096,
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         style: '',
         deepseekKey: '',
       });
