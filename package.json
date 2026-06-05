@@ -1,0 +1,56 @@
+{
+  "name": "ziyouniao-ai",
+  "version": "3.0.0",
+  "description": "自由鸟AI - 基于OpenClaw的智能对话客户端",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "icons": "bash scripts/generate-icons.sh",
+    "postinstall": "bash scripts/generate-icons.sh"
+  },
+  "author": "Ziyouniao Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.ziyouniao.ai",
+    "productName": "自由鸟AI",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*.png",
+      "assets/**/*.icns"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icon.icns",
+      "artifactName": "${productName}-${version}-mac.${ext}",
+      "darkModeSupport": true
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.png",
+      "uninstallerIcon": "assets/icon.png"
+    }
+  }
+}

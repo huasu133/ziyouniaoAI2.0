@@ -1,0 +1,301 @@
+/* ─── layout.css — 四栏 Grid + 顶栏 ─────────────────────────────────────── */
+
+/* ─── 顶栏 ──────────────────────────────────────────── */
+#topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.topbar-left,
+.topbar-center,
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.topbar-left {
+  flex: 0 0 auto;
+  min-width: 120px;
+}
+
+.topbar-center {
+  flex: 1;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 12px;
+}
+
+.topbar-right {
+  flex: 0 0 auto;
+  min-width: 120px;
+  justify-content: flex-end;
+}
+
+.topbar-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--t2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.topbar-btn:hover {
+  background: var(--hover-bg);
+  color: var(--t1);
+}
+.topbar-btn:active {
+  transform: scale(0.95);
+}
+
+.topbar-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t1);
+  margin-left: 4px;
+}
+
+.topbar-status {
+  position: relative;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--t3);
+  transition: background 0.3s;
+}
+.status-dot.online {
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green-bg);
+}
+.status-dot.offline {
+  background: var(--t3);
+}
+
+/* ─── 主体 ──────────────────────────────────────────── */
+#app-body {
+  display: flex;
+  height: calc(100vh - 44px);
+  margin-top: 44px;
+  overflow: hidden;
+}
+
+/* ─── 侧栏 ──────────────────────────────────────────── */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease, min-width 0.2s ease, opacity 0.2s ease;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  border-right: none;
+}
+
+/* ─── 聊天区 ────────────────────────────────────────── */
+.chat-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg);
+  position: relative;
+}
+
+.messages-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+}
+
+/* ─── 输入区 ────────────────────────────────────────── */
+.input-area {
+  border-top: 1px solid var(--border);
+  padding: 8px 16px 12px;
+  background: var(--bg);
+}
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.model-select {
+  background: var(--bg3);
+  color: var(--t1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+.model-select:focus {
+  border-color: var(--accent);
+}
+
+.input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.message-input {
+  flex: 1;
+  resize: none;
+  background: var(--input-bg);
+  color: var(--t1);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  outline: none;
+  max-height: 200px;
+  min-height: 42px;
+  transition: border-color 0.15s;
+}
+.message-input:focus {
+  border-color: var(--accent);
+}
+.message-input::placeholder {
+  color: var(--t3);
+}
+
+.btn-send,
+.btn-stop {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+.btn-send {
+  background: var(--accent);
+  color: #ffffff;
+}
+.btn-send:hover {
+  background: var(--accent-hover);
+}
+.btn-send:active {
+  transform: scale(0.95);
+}
+.btn-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-stop {
+  background: var(--red);
+  color: #ffffff;
+}
+.btn-stop:hover {
+  background: #c0392b;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.input-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+  padding: 0 4px;
+}
+
+.input-hint {
+  font-size: 11px;
+  color: var(--t3);
+}
+
+.token-count {
+  font-size: 11px;
+  color: var(--t3);
+}
+
+/* ─── 设置面板 ──────────────────────────────────────── */
+.settings-panel {
+  width: 300px;
+  min-width: 300px;
+  background: var(--settings-bg);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: width 0.2s ease, min-width 0.2s ease, opacity 0.2s ease;
+}
+
+.settings-panel.hidden {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  border-left: none;
+  overflow: hidden;
+}
+
+/* ─── Tab 栏 ────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  max-width: 100%;
+  padding: 2px 0;
+}
+.tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── 响应式 ────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 44px;
+    bottom: 0;
+    z-index: 50;
+    box-shadow: 4px 0 12px var(--shadow);
+  }
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+}

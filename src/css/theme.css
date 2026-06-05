@@ -1,0 +1,109 @@
+/* ─── theme.css — 暗色/亮色 CSS 变量体系 ─────────────────────────────────── */
+
+/* 暗色主题（默认） */
+[data-theme="dark"] {
+  --bg: #1e1e1e;
+  --bg2: #252526;
+  --bg3: #2d2d2d;
+  --bg4: #333333;
+  --border: rgba(255, 255, 255, 0.06);
+  --border2: rgba(255, 255, 255, 0.10);
+  --t1: #d2d3e0;
+  --t2: #858699;
+  --t3: #a0a0a0;
+  --accent: #6c4dff;
+  --accent-hover: #7e5fff;
+  --accent-bg: rgba(108, 77, 255, 0.12);
+  --green: #28b894;
+  --green-bg: rgba(40, 184, 148, 0.12);
+  --red: #e74c3c;
+  --red-bg: rgba(231, 76, 60, 0.12);
+  --orange: #e67e22;
+  --orange-bg: rgba(230, 126, 34, 0.12);
+  --shadow: rgba(0, 0, 0, 0.3);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.2);
+  --code-bg: #1a1a2e;
+  --user-bubble: #2d2d3a;
+  --assistant-bubble: #252530;
+  --input-bg: #2a2a36;
+  --settings-bg: #22222c;
+  --hover-bg: rgba(255, 255, 255, 0.05);
+  --active-bg: rgba(108, 77, 255, 0.15);
+}
+
+/* 亮色主题 */
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg2: #f5f5f5;
+  --bg3: #e8e8e8;
+  --bg4: #dddddd;
+  --border: rgba(0, 0, 0, 0.10);
+  --border2: rgba(0, 0, 0, 0.15);
+  --t1: #1a1a1a;
+  --t2: #666666;
+  --t3: #999999;
+  --accent: #6c4dff;
+  --accent-hover: #5a3de6;
+  --accent-bg: rgba(108, 77, 255, 0.08);
+  --green: #28b894;
+  --green-bg: rgba(40, 184, 148, 0.08);
+  --red: #d63031;
+  --red-bg: rgba(214, 48, 49, 0.08);
+  --orange: #e67e22;
+  --orange-bg: rgba(230, 126, 34, 0.08);
+  --shadow: rgba(0, 0, 0, 0.08);
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+  --code-bg: #f0f0f5;
+  --user-bubble: #e8e8f0;
+  --assistant-bubble: #f5f5fa;
+  --input-bg: #f0f0f5;
+  --settings-bg: #fafafa;
+  --hover-bg: rgba(0, 0, 0, 0.03);
+  --active-bg: rgba(108, 77, 255, 0.10);
+}
+
+/* 全局基础样式 */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--t1);
+  background-color: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 字体大小变体 */
+[data-font-size="small"] { font-size: 13px; }
+[data-font-size="medium"] { font-size: 14px; }
+[data-font-size="large"] { font-size: 15px; }
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+::selection {
+  background: var(--accent-bg);
+  color: var(--t1);
+}
+
+/* 过渡效果 */
+.theme-transitioning,
+.theme-transitioning * {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease !important;
+}
