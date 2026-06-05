@@ -206,8 +206,15 @@
       var self = this;
       input.addEventListener('change', function () {
         if (input.files && input.files[0]) {
+          var file = input.files[0];
+          // P1: 文件大小检查（限 50MB）
+          if (file.size > 50 * 1024 * 1024) {
+            var App = window.ZYN3.App;
+            if (App && App.showToast) App.showToast('文件过大（超过50MB），无法导入', 'error');
+            return;
+          }
           var Utils = window.ZYN3.Utils;
-          Utils.readFileAsText(input.files[0]).then(function (text) {
+          Utils.readFileAsText(file).then(function (text) {
             try {
               var data = JSON.parse(text);
               var success = Storage.importData(data);

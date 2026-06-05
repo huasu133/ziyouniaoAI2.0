@@ -34,6 +34,10 @@ let mainWindow = null;
 let gatewayProcess = null;
 let isQuitting = false;
 let _quitTimer = null;
+let _restartCount = 0;
+let _restartWindowStart = 0;
+const MAX_RESTARTS = 3;
+const RESTART_WINDOW_MS = 60000;
 
 // ─── CSP 策略说明 ────────────────────────────────────────────────────────
 // CSP 策略在 src/index.html 的 <meta http-equiv="Content-Security-Policy">
@@ -98,18 +102,23 @@ async function findOpenClaw() {
 function waitForGateway() {
   return new Promise((resolve) => {
     const startTime = Date.now();
+    let _polling = false; // 防双重轮询
 
     function poll() {
+      if (_polling) return;
+      _polling = true;
       const req = http.get(GATEWAY_HEALTH_URL, (res) => {
         let data = '';
         res.on('data', (chunk) => { data += chunk.toString('utf8'); });
         res.on('end', () => {
+          _polling = false;
           console.log('[main] Gateway health check response:', data);
           resolve(res.statusCode === 200);
         });
       });
 
       req.on('error', () => {
+        _polling = false;
         const elapsed = Date.now() - startTime;
         if (elapsed >= GATEWAY_MAX_WAIT_MS) {
           console.error('[main] Gateway health check timed out after', elapsed, 'ms');
@@ -121,13 +130,7 @@ function waitForGateway() {
 
       req.setTimeout(2000, () => {
         req.destroy();
-        const elapsed = Date.now() - startTime;
-        if (elapsed >= GATEWAY_MAX_WAIT_MS) {
-          console.error('[main] Gateway health check timed out');
-          resolve(false);
-        } else {
-          setTimeout(poll, GATEWAY_POLL_MS);
-        }
+        // 不要在这里调 poll —— error 事件会处理（因为 destroy 会触发 error）
       });
     }
 
@@ -172,23 +175,37 @@ function startGateway(openclawPath) {
     gatewayProcess = null;
   });
 
-  // P0: gateway 崩溃自动重启
+  // P0: gateway 崩溃自动重启（带次数限制）
   proc.on('exit', (code, signal) => {
     console.log('[main] OpenClaw gateway exited with code', code, 'signal', signal);
     gatewayProcess = null;
-    // 非正常退出时自动重启
     if (!isQuitting && code !== 0) {
-      console.log('[main] Gateway crashed, attempting restart...');
-      const p = startGateway(openclawPath);
-      gatewayProcess = p;
-      waitForGateway().then((ready) => {
-        if (ready) {
-          console.log('[main] Gateway restarted successfully');
-        } else {
-          console.error('[main] Gateway restart failed');
-          dialog.showErrorBox('网关重启失败', 'OpenClaw 网关崩溃后重启失败。\n请检查终端运行 "openclaw serve" 是否正常。');
-        }
-      });
+      const now = Date.now();
+      if (now - _restartWindowStart > RESTART_WINDOW_MS) {
+        _restartCount = 0;
+        _restartWindowStart = now;
+      }
+      _restartCount++;
+      if (_restartCount > MAX_RESTARTS) {
+        console.error('[main] Gateway crashed too many times, giving up');
+        dialog.showErrorBox('网关异常', 'OpenClaw 网关反复崩溃（60秒内崩溃超过3次）。\n请检查配置或手动运行 "openclaw serve" 排查。');
+        return;
+      }
+      console.log('[main] Gateway crashed, attempting restart (', _restartCount, '/', MAX_RESTARTS, ')...');
+      const delay = Math.min(3000 * Math.pow(2, _restartCount - 1), 60000);
+      setTimeout(function () {
+        if (isQuitting) return;
+        const p = startGateway(openclawPath);
+        gatewayProcess = p;
+        waitForGateway().then(function (ready) {
+          if (ready) {
+            console.log('[main] Gateway restarted successfully');
+            _restartCount = 0;
+          } else {
+            console.error('[main] Gateway restart failed');
+          }
+        });
+      }, delay);
     }
   });
 
@@ -199,14 +216,15 @@ function startGateway(openclawPath) {
  * 尝试结束网关进程
  */
 function killGateway() {
-  if (gatewayProcess) {
+  var procToKill = gatewayProcess; // 捕获当前引用，防闭包过期
+  if (procToKill) {
     try {
-      console.log('[main] Killing gateway process PID:', gatewayProcess.pid);
-      gatewayProcess.kill('SIGTERM');
-      setTimeout(() => {
-        if (gatewayProcess && !gatewayProcess.killed) {
+      console.log('[main] Killing gateway process PID:', procToKill.pid);
+      procToKill.kill('SIGTERM');
+      setTimeout(function () {
+        if (procToKill && !procToKill.killed) {
           try {
-            gatewayProcess.kill('SIGKILL');
+            procToKill.kill('SIGKILL');
           } catch (_) {}
         }
       }, 2000);
@@ -251,11 +269,12 @@ function createWindow() {
     show: false,
   });
 
-  // P0: loadFile 加错误处理
+  // P0: loadFile 加错误处理 + 失败时显示窗口
   mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'))
     .catch(function (err) {
       console.error('[main] Failed to load index.html:', err.message);
       dialog.showErrorBox('加载失败', 'UI文件损坏或缺失');
+      try { mainWindow.show(); } catch (_) {}
     });
 
   mainWindow.once('ready-to-show', () => {
@@ -315,15 +334,25 @@ ipcMain.handle('save-lessons', (_event, lessons) => {
 });
 
 ipcMain.handle('http-get', async (_event, url) => {
+  // 安全白名单：仅允许本地网关
+  if (!url || !url.startsWith('http://127.0.0.1:18789')) {
+    console.error('[main] http-get blocked URL:', url);
+    return { status: 0, data: null, error: 'URL not allowed' };
+  }
   return new Promise((resolve) => {
-    http.get(url, (res) => {
+    var req = http.get(url, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
       res.on('end', () => {
         resolve({ status: res.statusCode, data });
       });
-    }).on('error', (err) => {
+    });
+    req.on('error', (err) => {
       resolve({ status: 0, data: null, error: err.message });
+    });
+    req.setTimeout(10000, function () {
+      req.destroy();
+      resolve({ status: 0, data: null, error: 'Request timeout' });
     });
   });
 });
@@ -341,17 +370,13 @@ app.whenReady().then(async () => {
     if (ready) {
       console.log('[main] Gateway is ready');
     } else {
-      console.error('[main] Gateway did not become ready in time');
-      dialog.showErrorBox('网关启动失败', 'OpenClaw 网关未能及时启动，请检查 OpenClaw 安装。\n\n要求: 在终端运行 "openclaw serve" 可正常启动。');
-      // P1: 网关未就绪则退应用，不继续运行空壳
-      app.quit();
-      return;
+      console.warn('[main] Gateway did not become ready — UI will show with error');
+      // 不退出，让UI显示网关错误横幅，用户可进入设置
     }
   } else {
-    console.warn('[main] OpenClaw not found in PATH');
-    dialog.showErrorBox('未找到 OpenClaw', '未找到 OpenClaw CLI 工具。\n\n请先安装: npm install -g @openclaw/cli\n或参考: https://openclaw.dev/docs/install');
-    app.quit();
-    return;
+    console.warn('[main] OpenClaw not found — UI will show with error');
+    dialog.showErrorBox('未找到 OpenClaw', 'OpenClaw CLI 工具未找到。\n请先安装并配置。\n\n安装: curl -fsSL https://openclaw.ai/install.sh | bash\n配置: openclaw onboard');
+    // 不退出，让UI继续加载
   }
 
   app.on('activate', () => {

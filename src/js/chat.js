@@ -320,7 +320,25 @@
       existing.forEach(function (el) { el.remove(); });
 
       var self = this;
-      this.messages.forEach(function (msg) {
+      var MAX_RENDER = 200;
+      var msgs = this.messages;
+
+      // 长对话性能优化：限制初始渲染数量
+      if (msgs.length > MAX_RENDER) {
+        var skipped = msgs.length - MAX_RENDER;
+        var loadMore = document.createElement('div');
+        loadMore.className = 'load-more';
+        loadMore.innerHTML = '<button>显示全部 ' + msgs.length + ' 条消息 (已隐藏 ' + skipped + ' 条)</button>';
+        loadMore.querySelector('button').onclick = function () {
+          self._renderAll = true;
+          self.renderMessages();
+        };
+        container.appendChild(loadMore);
+        // 只渲染最近 MAX_RENDER 条
+        msgs = msgs.slice(skipped);
+      }
+
+      msgs.forEach(function (msg) {
         self._renderMessage(msg);
       });
 

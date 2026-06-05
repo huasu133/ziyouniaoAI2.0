@@ -128,15 +128,7 @@
         });
       }
 
-      // ─── 模型选择 ──────────────────────────────────
-      var modelSelect = document.getElementById('model-select');
-      if (modelSelect) {
-        modelSelect.addEventListener('change', function () {
-          var settings = Storage.getSettings();
-          settings.model = modelSelect.value;
-          Storage.setSettings(settings);
-        });
-      }
+      // ─── 模型选择（统一由 settings.js 管理）───────
 
       // ─── 欢迎页模型按钮 ────────────────────────────
       var modelBtns = document.querySelectorAll('.model-btn');

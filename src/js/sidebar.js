@@ -55,7 +55,7 @@
       var tabs = Storage.getTabs();
       var activeTab = Storage.getActiveTab();
 
-      if (!tabs || tabs.length === 0) {
+      if (!tabs || !Array.isArray(tabs) || tabs.length === 0) {
         list.innerHTML = '' +
           '<div class="conversation-empty">' +
             '<div class="conversation-empty-icon">' +

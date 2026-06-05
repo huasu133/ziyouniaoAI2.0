@@ -93,7 +93,14 @@
      */
     switchTab: function (tabId) {
       if (tabId === this.activeTabId) return;
-      if (this.isGenerating()) return;
+      if (this.isGenerating()) {
+        // P1: 提示用户
+        var App = window.ZYN3.App;
+        if (App && App.showToast) {
+          App.showToast('请先停止当前生成再切换标签', 'info');
+        }
+        return;
+      }
 
       this.activeTabId = tabId;
       Storage.setActiveTab(this.activeTabId);
@@ -113,7 +120,15 @@
 
       if (this.tabs.length <= 1) {
         // 只有一个标签时，清空内容但不删除
-        Chat.clearMessages();
+        // P0: 检查生成状态
+        if (this.isGenerating()) {
+          try { Chat.stopGeneration(); } catch (_) {}
+        }
+        try {
+          Chat.clearMessages();
+        } catch (e) {
+          console.error('[Tabs] clearMessages error:', e);
+        }
         var tab = this.tabs[0];
         tab.title = '新对话';
         tab.updatedAt = Date.now();

@@ -319,3 +319,21 @@
 .message-content li {
   margin-bottom: 4px;
 }
+
+/* ─── 长对话加载更多 ────────────────────────────────── */
+.load-more {
+  text-align: center;
+  padding: 12px 20px;
+}
+.load-more button {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 16px;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+}
+.load-more button:hover {
+  background: var(--accent-bg);
+}

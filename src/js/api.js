@@ -59,7 +59,17 @@
           var fullText = '';
 
           function readChunk() {
-            reader.read().then(function (result) {
+            // 60s 无数据超时保护
+            var timeoutId;
+            var readPromise = reader.read();
+            var timeoutPromise = new Promise(function (_, reject) {
+              timeoutId = setTimeout(function () {
+                reject(new Error('Stream timeout'));
+              }, 60000);
+            });
+
+            Promise.race([readPromise, timeoutPromise]).then(function (result) {
+              clearTimeout(timeoutId);
               if (result.done) {
                 // 处理缓冲区剩余数据
                 if (buffer.trim()) {
