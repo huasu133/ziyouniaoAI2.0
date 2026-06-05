@@ -144,7 +144,7 @@
 
       // 风格预设 — 首次对话时注入 system prompt
       var styleSelect = document.getElementById('style-select');
-      if (styleSelect && styleSelect.value && this.messages.length <= 1) {
+      if (styleSelect && styleSelect.value && apiMessages.length <= 1) {
         var styles = {
           'efficient': '每条回复不超过3句话。结论在第一句。不要"好的""让我来"等废话。用表格代替段落。',
           'creative': '可以适当使用比喻和故事。鼓励多角度思考。回复可以长一些，但要有洞察。语气轻松。',
@@ -569,9 +569,9 @@
       // 水平线 ---
       html = html.replace(/^-{3,}$/gm, '<hr>');
 
-      // 链接 [text](url) — 仅允许 http/https/mailto 协议
+      // 链接 [text](url) — 仅允许 http/https/mailto/data 协议
       html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (match, text, url) {
-        var safeUrl = /^(https?:|mailto:)/i.test(url) ? url : '#blocked';
+        var safeUrl = /^(https?:|mailto:|data:)/i.test(url) ? url : '#blocked';
         return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
       });
 
@@ -644,6 +644,7 @@
      */
     _generateSummaryAndName: async function () {
       if (this.messages.length < 2) return;
+      var tabId = this.currentTabId; // P0: 捕获当前标签，防异步竞态
       var prompt = '';
       for (var i = 0; i < this.messages.length; i++) {
         prompt += this.messages[i].role + ': ' + (this.messages[i].content || '').substring(0, 200) + '\n';
@@ -657,14 +658,15 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, stream: false }),
+          signal: AbortSignal.timeout(30000),
         });
         var data = await res.json();
         var result = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
         var parts = result.split('---');
         var title = (parts[0] || '').replace(/["""]/g, '').trim().slice(0, 10) || '';
-        if (title && this.currentTabId) {
+        if (title && tabId) {
           var Tabs = window.ZYN3.Tabs;
-          if (Tabs) Tabs.renameTab(this.currentTabId, title);
+          if (Tabs) Tabs.renameTab(tabId, title);
         }
         // 保存记忆
         var summary = (parts[1] || result).trim().slice(0, 100);

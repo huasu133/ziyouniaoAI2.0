@@ -121,7 +121,7 @@
             e.preventDefault();
             Chat.historyIndex = Math.min(Chat.historyIndex + 1, Chat.inputHistory.length - 1);
             input.value = Chat.inputHistory[Chat.historyIndex] || '';
-          } else if (e.key === 'ArrowDown' && !e.shiftKey) {
+          } else if (e.key === 'ArrowDown' && !e.shiftKey && !input.value) {
             e.preventDefault();
             if (Chat.historyIndex > 0) {
               Chat.historyIndex--;
