@@ -774,9 +774,24 @@
       }
       var html = '';
       items.slice(-10).reverse().forEach(function (m) {
-        html += '<div class="mem-item"><span class="mem-key">' + Utils.escapeHTML(m.key || '') + '</span>: <span class="mem-val">' + Utils.escapeHTML((m.value || '').slice(0, 100)) + '</span></div>';
+        html += '<div class="mem-item">' +
+          '<div class="mem-key">' + Utils.escapeHTML(m.key || '') + '</div>' +
+          '<div class="mem-val">' + Utils.escapeHTML((m.value || '').slice(0, 100)) + '</div>' +
+          '<button class="mem-del" onclick="window.ZYN3.Chat._deleteMemory(\'' + Utils.escapeHTML(m.key || '') + '\')">✕</button>' +
+        '</div>';
       });
       panel.innerHTML = html;
+    },
+
+    /**
+     * 删除单条记忆
+     */
+    _deleteMemory: function (key) {
+      var Storage = window.ZYN3.Storage;
+      var memories = Storage.getMemories();
+      memories = memories.filter(function (m) { return m.key !== key; });
+      Storage.setMemories(memories);
+      this._renderMemoryPanel();
     },
   };
 
