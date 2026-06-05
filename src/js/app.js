@@ -93,14 +93,6 @@
         }
       });
 
-      // ─── 侧栏搜索 ──────────────────────────────────
-      var sidebarSearch = document.getElementById('sidebarSearch');
-      if (sidebarSearch) {
-        sidebarSearch.addEventListener('input', function () {
-          Sidebar.filter(sidebarSearch.value);
-        });
-      }
-
       // ─── 新建对话 ──────────────────────────────────
       var newChatBtn = document.getElementById('btn-new-chat');
       if (newChatBtn) {
