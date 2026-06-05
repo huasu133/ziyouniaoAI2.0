@@ -138,6 +138,9 @@
       // 准备消息列表
       var apiMessages = this.messages
         .filter(function (m) { return !m._placeholder; })
+        .map(function (m) {
+          return { role: m.role, content: m.content };
+        });
 
       // 风格预设 — 首次对话时注入 system prompt
       var styleSelect = document.getElementById('style-select');
@@ -153,9 +156,6 @@
           apiMessages = [{ role: 'system', content: systemPrompt }].concat(apiMessages);
         }
       }
-        .map(function (m) {
-          return { role: m.role, content: m.content };
-        });
 
       // P0: 历史裁剪 — 使用模型上下文窗口(128K tokens)，非输出maxTokens
       // DeepSeek 上下文为 128K tokens，设阈值 64K (~262K 字符，中英文混合约2.5字符/token)
