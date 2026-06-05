@@ -217,6 +217,25 @@
           Settings.toggle();
         }
 
+        // Ctrl/Cmd+F: 聊天内搜索
+        if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+          e.preventDefault();
+          var q = prompt('在当前对话中搜索:');
+          if (!q) return;
+          q = q.toLowerCase();
+          var msgs = document.querySelectorAll('.message-content');
+          var found = 0;
+          msgs.forEach(function (el) {
+            if (el.textContent.toLowerCase().indexOf(q) !== -1) {
+              el.style.background = 'var(--accent-bg)';
+              found++;
+              setTimeout(function () { el.style.background = ''; }, 2000);
+            }
+          });
+          var App = window.ZYN3.App;
+          if (App && App.showToast) App.showToast('找到 ' + found + ' 处匹配', found > 0 ? 'success' : 'info');
+        }
+
         // Escape: 关闭设置
         if (e.key === 'Escape') {
           if (Settings.visible) {
@@ -327,4 +346,34 @@
   } else {
     App.init();
   }
+
+  // ─── 文件拖拽到输入框 ──────────────────────────────
+  var dropZone = document.getElementById('message-input');
+  if (dropZone) {
+    dropZone.addEventListener('dragover', function (e) { e.preventDefault(); });
+    dropZone.addEventListener('drop', async function (e) {
+      e.preventDefault();
+      var file = e.dataTransfer.files[0];
+      if (!file) return;
+      var text = await file.text();
+      dropZone.value = text;
+    });
+  }
+
+  // ─── 粘贴图片 ──────────────────────────────────────
+  document.addEventListener('paste', async function (e) {
+    var items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image/') === 0) {
+        var file = items[i].getAsFile();
+        var reader = new FileReader();
+        reader.onload = function () {
+          var input = document.getElementById('message-input');
+          if (input) input.value += '\n![图片](' + reader.result + ')\n';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  });
 })();
