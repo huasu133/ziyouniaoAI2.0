@@ -159,6 +159,23 @@
         });
       });
 
+      // ─── 免费搜索 ──────────────────────────────────
+      var searchBtn = document.getElementById('btn-web-search');
+      if (searchBtn) {
+        searchBtn.addEventListener('click', function () {
+          var q = prompt('搜索什么？');
+          if (!q) return;
+          var searchEl = document.querySelector('.search-results');
+          if (searchEl) searchEl.remove();
+          window.ZYN3.Search.searchWeb(q).then(function (r) {
+            var resultsHtml = r.results ? r.results.slice(0, 5).map(function (item) {
+              return '- [' + (item.title || '无标题') + '](' + (item.url || '#') + ') ' + (item.snippet || '');
+            }).join('\n') : (r.error || '无结果');
+            Chat.addMessage('assistant', '**搜索: ' + q + '**\n' + resultsHtml);
+          });
+        });
+      }
+
       // ─── 网关状态按钮 ──────────────────────────────
       var gatewayBtn = document.getElementById('btn-gateway-status');
       if (gatewayBtn) {
