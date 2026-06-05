@@ -50,12 +50,33 @@
     },
 
     /**
-     * 搜索网页（Tavily → Serper fallback）
+     * Claw Search API（免费，无Key）
+     */
+    _clawSearch: async function (query) {
+      var url = 'https://www.claw-search.com/api/search?q=' + encodeURIComponent(query);
+      var res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) return [];
+      var data = await res.json();
+      if (!data.web || !data.web.results || !data.web.results.length) return [];
+      return data.web.results.slice(0, 5).map(function (r) {
+        return { title: r.title, url: r.url, snippet: r.description || '' };
+      });
+    },
+
+    /**
+     * 搜索网页（Tavily → Serper → Claw 三级fallback）
      */
     searchWeb: async function (query) {
       var cached = SEARCH_CACHE[query];
       if (cached && Date.now() - cached.time < CACHE_TTL) {
         return { results: cached.results, source: 'cache' };
+      }
+      var claw = await this._clawSearch(query).catch(function () { return []; });
+      if (claw.length > 0) {
+        SEARCH_CACHE[query] = { results: claw, time: Date.now() };
+        cacheKeys.push(query);
+        if (cacheKeys.length > MAX_CACHE) { delete SEARCH_CACHE[cacheKeys.shift()]; }
+        return { results: claw, source: 'claw' };
       }
       var tav = await this._tavilySearch(query).catch(function () { return []; });
       if (tav.length > 0) {
