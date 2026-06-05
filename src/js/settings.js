@@ -143,6 +143,8 @@
      */
     _bindEvents: function () {
       var self = this;
+      var Utils = window.ZYN3.Utils;
+      var debouncedSave = Utils.debounce(function () { self._saveSettings(); }, 150);
 
       // 设置变更自动保存
       var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select'];
@@ -159,7 +161,7 @@
               var valEl = document.getElementById('temperature-value');
               if (valEl) valEl.textContent = el.value;
             }
-            self._saveSettings();
+            debouncedSave();
           });
         }
       });

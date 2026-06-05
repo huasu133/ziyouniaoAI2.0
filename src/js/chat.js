@@ -204,7 +204,7 @@
           if (sBtn) sBtn.classList.remove('hidden');
           if (stpBtn) stpBtn.classList.add('hidden');
 
-          Chat.showError('请求失败: ' + (err.message || '未知错误'));
+          self.showError('请求失败: ' + (err.message || '未知错误'));
         },
       });
     },
@@ -412,6 +412,23 @@
       html = html.replace(/`([^`]+)`/g, function (match, code) {
         return '<code>' + code + '</code>';
       });
+
+      // 标题 h1~h6
+      html = html.replace(/^(#{1,6})\s+(.+)$/gm, function (match, hashes, content) {
+        return '<h' + hashes.length + '>' + content.trim() + '</h' + hashes.length + '>';
+      });
+
+      // 引用 blockquote — 合并相邻 > 行
+      html = html.replace(/^>\s*(.+)$(?:\n^>\s*(.+))*$/gm, function (match) {
+        var inner = match.replace(/^>\s*/gm, '').trim();
+        return '<blockquote>' + inner + '</blockquote>';
+      });
+
+      // 水平线 ---
+      html = html.replace(/^-{3,}$/gm, '<hr>');
+
+      // 链接 [text](url)
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
 
       // 加粗 **text**
       html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
