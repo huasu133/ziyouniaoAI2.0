@@ -88,8 +88,9 @@
               '<div class="conversation-item-preview">' + Utils.escapeHTML(preview || '空对话') + '</div>' +
             '</div>' +
             '<div class="conversation-item-time">' + Utils.formatRelativeDate(tab.updatedAt) + '</div>' +
-            '<button class="conversation-item-folder" data-tab-id="' + Utils.escapeHTML(tab.id) + '" title="打开数据文件夹">📁</button>' +
-            '<button class="conversation-item-delete" data-tab-id="' + Utils.escapeHTML(tab.id) + '" title="删除">✕</button>' +
+            '<button class="conv-item-rename-btn" data-tab-id="' + Utils.escapeHTML(tab.id) + '" title="重命名">✏️</button>' +
+            '<button class="conv-item-folder-btn" data-tab-id="' + Utils.escapeHTML(tab.id) + '" title="打开数据文件夹">📁</button>' +
+            '<button class="conv-item-delete-btn" data-tab-id="' + Utils.escapeHTML(tab.id) + '" title="删除">✕</button>' +
           '</div>';
       }
       list.innerHTML = html;
@@ -98,20 +99,81 @@
       var self = this;
       list.querySelectorAll('.conversation-item').forEach(function (el) {
         el.addEventListener('click', function (e) {
-          if (e.target.closest('.conversation-item-delete')) return;
+          if (e.target.closest('.conv-item-rename-btn')) return;
+          if (e.target.closest('.conv-item-folder-btn')) return;
+          if (e.target.closest('.conv-item-delete-btn')) return;
           var tabId = el.getAttribute('data-tab-id');
           Tabs.switchTab(tabId);
           self.render();
         });
       });
 
-      list.querySelectorAll('.conversation-item-delete').forEach(function (btn) {
+      // 删除按钮
+      list.querySelectorAll('.conv-item-delete-btn').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
           if (!confirm('确定删除此对话？')) return;
           var tabId = btn.getAttribute('data-tab-id');
           Tabs.closeTab(tabId);
           self.render();
+        });
+      });
+
+      // 重命名按钮
+      list.querySelectorAll('.conv-item-rename-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          var convItem = btn.closest('.conversation-item');
+          if (!convItem) return;
+          var tabId = convItem.getAttribute('data-tab-id');
+          var titleEl = convItem.querySelector('.conversation-item-title');
+          if (!titleEl) return;
+          var currentTitle = titleEl.textContent;
+
+          var input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'conv-rename-input';
+          input.value = currentTitle;
+          input.maxLength = 100;
+          titleEl.style.display = 'none';
+          titleEl.parentNode.insertBefore(input, titleEl.nextSibling);
+          input.focus();
+          input.select();
+
+          var cleanup = function (save) {
+            if (save) {
+              var newTitle = input.value.trim() || '新对话';
+              Tabs.renameTab(tabId, newTitle);
+              self.render();
+            } else {
+              titleEl.style.display = '';
+            }
+            if (input.parentNode) input.parentNode.removeChild(input);
+          };
+
+          input.addEventListener('blur', function () { cleanup(true); });
+          input.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') { ev.preventDefault(); cleanup(true); }
+            else if (ev.key === 'Escape') { ev.preventDefault(); cleanup(false); }
+          });
+        });
+      });
+
+      // 打开文件夹按钮
+      list.querySelectorAll('.conv-item-folder-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (window.electronAPI && window.electronAPI.openDataFolder) {
+            window.electronAPI.openDataFolder().then(function (res) {
+              if (!res.success) {
+                var App = window.ZYN3 && window.ZYN3.App;
+                if (App && App.showToast) App.showToast('打开文件夹失败', 'error');
+              }
+            });
+          } else {
+            var App = window.ZYN3 && window.ZYN3.App;
+            if (App && App.showToast) App.showToast('仅桌面版支持打开文件夹', 'info');
+          }
         });
       });
 

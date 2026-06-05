@@ -107,7 +107,10 @@
   flex-shrink: 0;
 }
 
-.conversation-item-delete {
+/* ─── 条目按钮（重命名/文件夹/删除） ──────────────── */
+.conv-item-rename-btn,
+.conv-item-folder-btn,
+.conv-item-delete-btn {
   width: 22px;
   height: 22px;
   display: flex;
@@ -121,13 +124,22 @@
   opacity: 0;
   transition: all 0.15s;
   flex-shrink: 0;
+  font-size: 11px;
 }
-.conversation-item:hover .conversation-item-delete {
+.conversation-item:hover .conv-item-rename-btn,
+.conversation-item:hover .conv-item-folder-btn,
+.conversation-item:hover .conv-item-delete-btn {
+  opacity: 0.6;
+}
+.conversation-item:hover .conv-item-rename-btn:hover,
+.conversation-item:hover .conv-item-folder-btn:hover,
+.conversation-item:hover .conv-item-delete-btn:hover {
   opacity: 1;
+  background: var(--hover-bg);
 }
-.conversation-item-delete:hover {
-  background: var(--red-bg);
-  color: var(--red);
+.conv-item-delete-btn:hover {
+  background: var(--red-bg) !important;
+  color: var(--red) !important;
 }
 
 /* ─── 重命名输入框 ──────────────────────────────────── */
