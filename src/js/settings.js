@@ -87,6 +87,9 @@
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) styleSelect.value = settings.style || '';
 
+      var deepseekKeyEl = document.getElementById('setting-deepseek-key');
+      if (deepseekKeyEl) deepseekKeyEl.value = settings.deepseekKey || '';
+
       // P0: 加载搜索 API Key
       var searchKeys = Storage.get('zyn3:search-keys') || {};
       var tavilyKey = document.getElementById('setting-tavily-key');
@@ -134,6 +137,9 @@
 
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) settings.style = styleSelect.value;
+
+      var deepseekKeyEl = document.getElementById('setting-deepseek-key');
+      if (deepseekKeyEl) settings.deepseekKey = deepseekKeyEl.value.trim();
 
       // P0: 保存搜索 API Key
       var searchKeys = Storage.get('zyn3:search-keys') || {};
