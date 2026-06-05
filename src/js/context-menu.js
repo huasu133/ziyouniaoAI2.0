@@ -167,7 +167,7 @@
           label: '搜索选中内容',
           action: function () {
             var query = encodeURIComponent(selectedText.substring(0, 200));
-            window.open('https://www.google.com/search?q=' + query, '_blank');
+            window.open('https://www.google.com/search?q=' + query, '_blank', 'noopener');
           },
         },
       ]);

@@ -75,7 +75,7 @@
         var preview = lastMsg ? Utils.getMessagePreview(lastMsg.content) : '';
 
         html += '' +
-          '<div class="conversation-item' + (isActive ? ' active' : '') + '" data-tab-id="' + tab.id + '">' +
+          '<div class="conversation-item' + (isActive ? ' active' : '') + '" data-tab-id="' + Utils.escapeHTML(tab.id) + '">' +
             '<div class="conversation-item-icon">' +
               '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
             '</div>' +
@@ -84,7 +84,7 @@
               '<div class="conversation-item-preview">' + Utils.escapeHTML(preview || '空对话') + '</div>' +
             '</div>' +
             '<div class="conversation-item-time">' + Utils.formatRelativeDate(tab.updatedAt) + '</div>' +
-            '<button class="conversation-item-delete" data-tab-id="' + tab.id + '" title="删除">✕</button>' +
+            '<button class="conversation-item-delete" data-tab-id="' + Utils.escapeHTML(tab.id) + '" title="删除">✕</button>' +
           '</div>';
       }
       list.innerHTML = html;
