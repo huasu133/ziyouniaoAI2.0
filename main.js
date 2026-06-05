@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage, globalShortcut } = require('electron');
 const path = require('path');
 const os = require('os');
 const { spawn, execFile } = require('child_process');
@@ -447,6 +447,13 @@ app.whenReady().then(async () => {
   setTimeout(gitSnapshot, 10000);
   setInterval(gitSnapshot, 60 * 60 * 1000);
 
+  // ─── 全局快捷键 Alt+Space ────────────────────────
+  globalShortcut.register('Alt+Space', function () {
+    if (mainWindow) {
+      mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+    }
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -479,5 +486,6 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
   killGateway();
 });

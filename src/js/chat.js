@@ -210,6 +210,8 @@
 
           // 自动记录教训
           self._reflectLesson('对话', text.substring(0, 50));
+          // 自动汇总+命名（后台调用，不阻塞）
+          self._generateSummaryAndName();
         },
         onError: function (err) {
           // P1: 用户中止後跳过重复 UI 更新
@@ -638,6 +640,46 @@
     },
 
     /**
+     * 自动生成摘要+对话标题
+     */
+    _generateSummaryAndName: async function () {
+      if (this.messages.length < 2) return;
+      var prompt = '';
+      for (var i = 0; i < this.messages.length; i++) {
+        prompt += this.messages[i].role + ': ' + (this.messages[i].content || '').substring(0, 200) + '\n';
+      }
+      prompt += '\n请分别回复以下两项（用 --- 分隔）：\n1. 给这个对话起一个 5 字以内的标题\n2. 用2-3句话概述本次对话';
+      try {
+        var API = window.ZYN3.API;
+        var model = document.querySelector('.model-select');
+        model = model ? model.value : 'deepseek-chat';
+        var res = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, stream: false }),
+        });
+        var data = await res.json();
+        var result = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+        var parts = result.split('---');
+        var title = (parts[0] || '').replace(/["""]/g, '').trim().slice(0, 10) || '';
+        if (title && this.currentTabId) {
+          var Tabs = window.ZYN3.Tabs;
+          if (Tabs) Tabs.renameTab(this.currentTabId, title);
+        }
+        // 保存记忆
+        var summary = (parts[1] || result).trim().slice(0, 100);
+        if (summary) {
+          var Storage = window.ZYN3.Storage;
+          var memories = Storage.getMemories();
+          memories.push({ key: title || '对话', value: summary, time: Date.now() });
+          if (memories.length > 50) memories = memories.slice(-50);
+          Storage.setMemories(memories);
+          this._renderMemoryPanel();
+        }
+      } catch (_) { /* 静默失败 */ }
+    },
+
+    /**
      * 自动记录教训
      */
     _reflectLesson: function (category, lesson) {
@@ -647,6 +689,26 @@
       lessons.push({ category: category, lesson: String(lesson).slice(0, 500), time: Date.now() });
       if (lessons.length > 100) lessons = lessons.slice(-100);
       Storage.setLessons(lessons);
+      this._renderMemoryPanel();
+    },
+
+    /**
+     * 渲染记忆面板
+     */
+    _renderMemoryPanel: function () {
+      var panel = document.getElementById('memory-panel');
+      if (!panel) return;
+      var Storage = window.ZYN3.Storage;
+      var items = Storage.getMemories();
+      if (!items || items.length === 0) {
+        panel.innerHTML = '<div style="color:var(--t3);font-size:12px;padding:8px;">暂无记忆</div>';
+        return;
+      }
+      var html = '';
+      items.slice(-10).reverse().forEach(function (m) {
+        html += '<div class="mem-item"><span class="mem-key">' + Utils.escapeHTML(m.key || '') + '</span>: <span class="mem-val">' + Utils.escapeHTML((m.value || '').slice(0, 100)) + '</span></div>';
+      });
+      panel.innerHTML = html;
     },
   };
 
