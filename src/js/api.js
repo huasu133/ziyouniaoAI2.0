@@ -48,6 +48,11 @@
       var Storage = window.ZYN3 && window.ZYN3.Storage;
       var apiKey = Storage ? (Storage.getSettings().deepseekKey || '') : '';
 
+      if (!apiKey) {
+        onError(new Error('请先在设置面板输入 DeepSeek API Key'));
+        return null;
+      }
+
       fetch(DEEPSEEK_BASE + '/v1/chat/completions', {
         method: 'POST',
         headers: {

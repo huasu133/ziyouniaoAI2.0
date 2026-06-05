@@ -289,11 +289,7 @@
      * 保存标签列表
      */
     _saveTabs: function () {
-      // P1: 检查 localStorage 是否满
-      if (!Storage.setTabs(this.tabs)) {
-        var App = window.ZYN3 && window.ZYN3.App;
-        if (App && App.showToast) App.showToast('存储空间不足，请清理一些旧对话', 'error');
-      }
+      Storage.setTabs(this.tabs);
     },
 
     /**

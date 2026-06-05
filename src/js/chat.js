@@ -754,9 +754,10 @@
       var modelSelect = document.querySelector('#model-select');
       var model = modelSelect ? modelSelect.value : 'deepseek-chat';
       var self = this;
-      fetch('http://127.0.0.1:18789/v1/chat/completions', {
+      var apiKey = Storage.getSettings().deepseekKey || '';
+      fetch('https://api.deepseek.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
         body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, stream: false }),
         signal: AbortSignal.timeout(30000),
       })
