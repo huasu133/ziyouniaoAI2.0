@@ -128,6 +128,41 @@
         });
       }
 
+      // ─── 图片上传 ──────────────────────────────────
+      var imageBtn = document.getElementById('btn-image');
+      if (imageBtn) {
+        var fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+
+        imageBtn.addEventListener('click', function () {
+          fileInput.click();
+        });
+
+        fileInput.addEventListener('change', function () {
+          var file = fileInput.files && fileInput.files[0];
+          if (!file) return;
+          if (file.size > 10 * 1024 * 1024) {
+            self.showToast('图片超过 10MB 限制', 'error');
+            fileInput.value = '';
+            return;
+          }
+          var reader = new FileReader();
+          reader.onload = function () {
+            var input = document.getElementById('message-input');
+            if (input) {
+              input.value += '\n![图片](' + reader.result + ')\n';
+              Utils.autoResizeTextarea(input);
+              input.focus();
+            }
+          };
+          reader.readAsDataURL(file);
+          fileInput.value = '';
+        });
+      }
+
       // ─── 停止按钮 ──────────────────────────────────
       var stopBtn = document.getElementById('btn-stop');
       if (stopBtn) {
