@@ -11,7 +11,7 @@
      * @returns {string}
      */
     generateId: function () {
-      return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+      return Date.now().toString(36) + Math.random().toString(36).substring(2, 11);
     },
 
     /**
@@ -83,12 +83,27 @@
      * @returns {Function}
      */
     throttle: function (fn, interval) {
-      let lastTime = 0;
+      var lastTime = 0;
+      var trailingTimer = null;
       return function () {
-        const now = Date.now();
+        var now = Date.now();
+        var context = this;
+        var args = arguments;
         if (now - lastTime >= interval) {
-          fn.apply(this, arguments);
+          if (trailingTimer) {
+            clearTimeout(trailingTimer);
+            trailingTimer = null;
+          }
+          fn.apply(context, args);
           lastTime = now;
+        } else {
+          // P2: trailing 调用 — 时间窗口结束时再执行一次
+          if (trailingTimer) clearTimeout(trailingTimer);
+          trailingTimer = setTimeout(function () {
+            fn.apply(context, args);
+            lastTime = Date.now();
+            trailingTimer = null;
+          }, interval - (now - lastTime));
         }
       };
     },

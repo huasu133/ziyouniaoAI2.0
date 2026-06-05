@@ -79,6 +79,9 @@
     startPolling: function (intervalMs) {
       if (intervalMs === undefined) intervalMs = 30000;
 
+      // P2: 清理已有定时器，防止重复轮询
+      this.stopPolling();
+
       Gateway.checkHealth().then(function () {
         Gateway.updateUI();
       });

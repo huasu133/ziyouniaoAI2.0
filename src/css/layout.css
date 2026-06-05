@@ -261,7 +261,8 @@
   transition: width 0.2s ease, min-width 0.2s ease, opacity 0.2s ease;
 }
 
-.settings-panel.hidden {
+/* P1: 用独立状态类替代 .hidden，避免 display:none 与动画冲突 */
+.settings-panel-collapsed {
   width: 0;
   min-width: 0;
   opacity: 0;

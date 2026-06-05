@@ -27,11 +27,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   /**
    * 保存所有数据（响应 before-quit）
+   * @returns {Function} unsubscribe - 调用以移除监听
    */
   onSaveAll: (callback) => {
-    ipcRenderer.on('save-all', () => {
-      callback();
-    });
+    const handler = () => callback();
+    ipcRenderer.on('save-all', handler);
+    return () => {
+      ipcRenderer.removeListener('save-all', handler);
+    };
   },
 
   /**

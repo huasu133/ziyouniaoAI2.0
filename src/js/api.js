@@ -87,7 +87,8 @@
               if (err.name === 'AbortError') {
                 onDone(fullText || '(已停止)');
               } else {
-                onError(err);
+                // P2: onError 外抛异常兜底
+                try { onError(err); } catch (_) {}
               }
             });
           }
@@ -132,7 +133,8 @@
           if (err.name === 'AbortError') {
             onDone('(已停止)');
           } else {
-            onError(err);
+            // P2: onError 外抛异常兜底
+            try { onError(err); } catch (_) {}
           }
         });
 

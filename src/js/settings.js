@@ -21,6 +21,9 @@
     init: function () {
       this._loadSettings();
       this._bindEvents();
+      // P1: 确保初始化时已保存的主题/字体立即生效
+      var settings = Storage.getSettings();
+      this._applySettings(settings);
     },
 
     /**
@@ -30,7 +33,7 @@
       this.visible = true;
       var panel = document.getElementById('settings-panel');
       if (panel) {
-        panel.classList.remove('hidden');
+        panel.classList.remove('settings-panel-collapsed');
       }
       this._loadSettings();
       Gateway.updateUI();
@@ -43,7 +46,7 @@
       this.visible = false;
       var panel = document.getElementById('settings-panel');
       if (panel) {
-        panel.classList.add('hidden');
+        panel.classList.add('settings-panel-collapsed');
       }
     },
 
@@ -80,6 +83,9 @@
 
       var modelSelect = document.getElementById('model-select');
       if (modelSelect) modelSelect.value = settings.model || 'deepseek-chat';
+
+      // P1: 加载后立即应用主题/字体设置
+      this._applySettings(settings);
     },
 
     /**
@@ -98,7 +104,10 @@
       if (tempRange) settings.temperature = parseFloat(tempRange.value);
 
       var maxTokens = document.getElementById('setting-max-tokens');
-      if (maxTokens) settings.maxTokens = parseInt(maxTokens.value, 10) || 4096;
+      if (maxTokens) {
+        var parsed = parseInt(maxTokens.value, 10);
+        settings.maxTokens = isNaN(parsed) ? 4096 : parsed;
+      }
 
       var modelSelect = document.getElementById('model-select');
       if (modelSelect) settings.model = modelSelect.value;
@@ -114,9 +123,13 @@
     _applySettings: function (settings) {
       if (!settings) settings = Storage.getSettings();
 
-      // 主题
+      // 主题 — 加过渡类避免切换时的闪动
       if (settings.theme) {
+        document.documentElement.classList.add('theme-transitioning');
         document.documentElement.setAttribute('data-theme', settings.theme);
+        setTimeout(function () {
+          document.documentElement.classList.remove('theme-transitioning');
+        }, 200);
       }
 
       // 字体大小
@@ -132,7 +145,7 @@
       var self = this;
 
       // 设置变更自动保存
-      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens'];
+      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select'];
 
       changeHandlers.forEach(function (id) {
         var el = document.getElementById(id);

@@ -121,6 +121,28 @@
         this.render();
       }
     },
+
+    /**
+     * 根据搜索词过滤会话列表
+     * @param {string} query - 搜索关键词
+     */
+    filter: function (query) {
+      var list = document.getElementById('conversation-list');
+      if (!list) return;
+
+      var items = list.querySelectorAll('.conversation-item');
+      var q = (query || '').toLowerCase().trim();
+
+      items.forEach(function (item) {
+        var titleEl = item.querySelector('.conversation-item-title');
+        var title = titleEl ? titleEl.textContent.toLowerCase() : '';
+        if (!q || title.indexOf(q) !== -1) {
+          item.style.display = '';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    },
   };
 
   window.ZYN3 = window.ZYN3 || {};

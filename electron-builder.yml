@@ -28,10 +28,6 @@ mac:
   icon: assets/icon.icns
   artifactName: "${productName}-${version}-mac-${arch}.${ext}"
   darkModeSupport: true
-  hardenedRuntime: true
-  gatekeeperAssess: false
-  entitlements: build/entitlements.mac.plist
-  entitlementsInherit: build/entitlements.mac.plist
 
 dmg:
   title: "${productName} ${version}"

@@ -36,6 +36,11 @@
     suppressAutoScroll: false,
 
     /**
+     * 是否由用户手动中止（防止 onDone/onError 重复 UI 更新）
+     */
+    _abortedByUser: false,
+
+    /**
      * 初始化
      */
     init: function () {
@@ -118,6 +123,7 @@
       });
 
       this.isGenerating = true;
+      this._abortedByUser = false;
 
       // 准备消息列表
       var apiMessages = this.messages
@@ -125,6 +131,22 @@
         .map(function (m) {
           return { role: m.role, content: m.content };
         });
+
+      // P1: 历史裁剪 — 从最新往回估算 token，保留最近 N 条
+      // 约 1 token ≈ 4 字符，以 maxTokens 的 80% 为阈值
+      var maxModelTokens = Math.max(settings.maxTokens || 4096, 1024);
+      var totalChars = 0;
+      var cutoff = -1;
+      for (var j = apiMessages.length - 1; j >= 0; j--) {
+        totalChars += (apiMessages[j].content ? apiMessages[j].content.length : 0);
+        if (totalChars / 4 > maxModelTokens * 0.8) {
+          cutoff = j;
+          break;
+        }
+      }
+      if (cutoff >= 0) {
+        apiMessages = apiMessages.slice(cutoff + 1);
+      }
 
       var self = this;
 
@@ -137,6 +159,8 @@
           self._appendToLastMessage(delta);
         },
         onDone: function (fullText) {
+          // P1: 用户中止後跳过重复 UI 更新
+          if (self._abortedByUser) return;
           self.isGenerating = false;
           self._abortController = null;
 
@@ -151,7 +175,6 @@
           self._saveCurrentMessages();
 
           // 更新 UI
-          // P0-8: 从 DOM 获取按钮引用
           var sBtn = document.getElementById('btn-send');
           var stpBtn = document.getElementById('btn-stop');
           if (sBtn) sBtn.classList.remove('hidden');
@@ -161,6 +184,8 @@
           self.scrollToBottom();
         },
         onError: function (err) {
+          // P1: 用户中止後跳过重复 UI 更新
+          if (self._abortedByUser) return;
           self.isGenerating = false;
           self._abortController = null;
 
@@ -188,6 +213,7 @@
      * 停止生成
      */
     stopGeneration: function () {
+      this._abortedByUser = true;
       if (this._abortController) {
         this._abortController.abort();
         this._abortController = null;
@@ -354,18 +380,19 @@
     _renderMarkdown: function (text) {
       if (!text) return '';
 
-      var html = text;
+      // P0: 先整体转义 HTML，防止 XSS
+      var html = Utils.escapeHTML(text);
 
-      // 代码块 (```) — 必须在行内代码之前处理
+      // 代码块 (```) — 先处理，因为内部不应被后续规则干扰
+      // escapeHTML 已将内容中的 <>& 等转义为实体，代码块内安全
       html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (match, lang, code) {
         var langClass = lang ? ' class="language-' + Utils.escapeHTML(lang) + '"' : '';
-        var escaped = Utils.escapeHTML(code.trim());
-        return '<pre><code' + langClass + '>' + escaped + '</code></pre>';
+        return '<pre><code' + langClass + '>' + code.trim() + '</code></pre>';
       });
 
-      // 行内代码 (`)
+      // 行内代码 (`) — 内部已是转义后的安全内容
       html = html.replace(/`([^`]+)`/g, function (match, code) {
-        return '<code>' + Utils.escapeHTML(code) + '</code>';
+        return '<code>' + code + '</code>';
       });
 
       // 加粗 **text**
@@ -374,8 +401,14 @@
       // 斜体 *text*
       html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-      // 换行 → <br>
-      html = html.replace(/\n/g, '<br>');
+      // 换行 → <br>（跳过 <pre> 内部）
+      var parts = html.split(/(<pre[\s\S]*?<\/pre>)/g);
+      for (var i = 0; i < parts.length; i++) {
+        if (!/^<pre/.test(parts[i])) {
+          parts[i] = parts[i].replace(/\n/g, '<br>');
+        }
+      }
+      html = parts.join('');
 
       return html;
     },

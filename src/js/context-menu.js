@@ -101,12 +101,12 @@
       menu.innerHTML = html;
       menu.classList.remove('hidden');
 
-      // 位置修正
+      // 位置修正 — 防四边溢出
       var rect = menu.getBoundingClientRect();
       var maxX = window.innerWidth - rect.width - 10;
       var maxY = window.innerHeight - rect.height - 10;
-      menu.style.left = Math.min(x, maxX) + 'px';
-      menu.style.top = Math.min(y, maxY) + 'px';
+      menu.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+      menu.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
 
       this.visible = true;
 
@@ -277,6 +277,12 @@
 
       Chat.messages.splice(idx, 1);
       Chat.renderMessages();
+
+      // P1: 删除消息後更新标签元数据
+      var Tabs = window.ZYN3.Tabs;
+      if (Tabs && Tabs.onMessageAdded && Chat.currentTabId) {
+        Tabs.onMessageAdded(Chat.currentTabId);
+      }
 
       // 保存
       if (Chat.currentTabId) {

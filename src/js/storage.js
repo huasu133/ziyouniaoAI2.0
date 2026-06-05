@@ -44,7 +44,11 @@
      * @param {string} key
      */
     remove: function (key) {
-      localStorage.removeItem(NS + key);
+      try {
+        localStorage.removeItem(NS + key);
+      } catch (err) {
+        console.error('[Storage] Failed to remove', key, err);
+      }
     },
 
     /**
@@ -53,15 +57,20 @@
      * @returns {string[]}
      */
     keys: function (prefix) {
-      const results = [];
-      const fullPrefix = NS + prefix;
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(fullPrefix)) {
-          results.push(k.substring(NS.length));
+      try {
+        const results = [];
+        const fullPrefix = NS + prefix;
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(fullPrefix)) {
+            results.push(k.substring(NS.length));
+          }
         }
+        return results;
+      } catch (err) {
+        console.error('[Storage] Failed to list keys:', err);
+        return [];
       }
-      return results;
     },
 
     // ─── 标签页 ──────────────────────────────────────
@@ -225,6 +234,7 @@
 
     /**
      * 保存所有数据（退出前调用）
+     * 数据已由各模块实时保存，此为协调信号
      */
     saveAll: function () {
       // 由各模块在退出前调用 saveAll
@@ -282,6 +292,8 @@
             // ID冲突时追加后缀
             tab.id = tab.id + '_' + Date.now().toString(36);
           }
+          // P1: 将新生成的 tab.id 添加到 existingIds，防止 data.tabs 内部 ID 冲突
+          existingIds[tab.id] = true;
           var messages = (data.tabMessages && data.tabMessages[origId]) || [];
           this.setTabMessages(tab.id, messages);
         }.bind(this));
