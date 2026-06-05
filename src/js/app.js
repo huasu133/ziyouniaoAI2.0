@@ -178,6 +178,15 @@
         });
       }
 
+      // ─── 导出当前对话 ──────────────────────────────
+      var exportBtn = document.getElementById('btn-export-md');
+      if (exportBtn) {
+        exportBtn.addEventListener('click', function () {
+          Chat.exportMarkdown();
+          App.showToast('对话已导出', 'success');
+        });
+      }
+
       // ─── 网关状态按钮 ──────────────────────────────
       var gatewayBtn = document.getElementById('btn-gateway-status');
       if (gatewayBtn) {

@@ -640,6 +640,20 @@
     },
 
     /**
+     * 导出当前对话为 Markdown
+     */
+    exportMarkdown: function () {
+      var md = '# 对话导出\n\n日期: ' + new Date().toISOString().slice(0, 10) + '\n\n';
+      for (var i = 0; i < this.messages.length; i++) {
+        var msg = this.messages[i];
+        var role = msg.role === 'user' ? '你' : '自由鸟';
+        md += '### ' + role + '\n\n' + (msg.content || '') + '\n\n';
+      }
+      var Utils = window.ZYN3.Utils;
+      Utils.downloadFile('对话_' + Date.now() + '.md', md, 'text/markdown');
+    },
+
+    /**
      * 清空当前对话
      */
     clearMessages: function () {
