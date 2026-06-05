@@ -10,11 +10,12 @@ directories:
 files:
   - main.js
   - preload.js
-  - src/**/*
+  - src/**/*   # 含 HTML/CSS/JS 全部前端资源，范围保持现状
   - assets/**/*.png
   - assets/**/*.icns
 
 mac:
+  # 个人项目，暂不配置 Apple 签名与公证（如需分发请添加 identity/hardenedRuntime/notarize）
   category: public.app-category.productivity
   target:
     - target: dmg
@@ -36,6 +37,7 @@ dmg:
     - x: 130
       y: 220
       type: file
+      path: /Applications
     - x: 410
       y: 220
       type: link

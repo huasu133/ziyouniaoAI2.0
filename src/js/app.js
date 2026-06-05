@@ -246,6 +246,76 @@
             Chat.stopGeneration();
           }
         }
+
+        // Ctrl+Tab: 下一标签
+        if (e.ctrlKey && e.key === 'Tab' && !e.shiftKey) {
+          e.preventDefault();
+          Tabs.nextTab();
+        }
+
+        // Ctrl+Shift+Tab: 上一标签
+        if (e.ctrlKey && e.key === 'Tab' && e.shiftKey) {
+          e.preventDefault();
+          Tabs.prevTab();
+        }
+
+        // Ctrl+W: 关闭当前标签（不在输入框中触发）
+        if (e.ctrlKey && e.key === 'w' && e.target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          Tabs.closeTab(Chat.currentTabId);
+        }
+      });
+
+      // ─── 文件拖放到输入框 ──────────────────────────
+      var dropZone = document.getElementById('message-input');
+      if (dropZone) {
+        dropZone.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          dropZone.classList.add('drag-highlight');
+        });
+        dropZone.addEventListener('dragleave', function () {
+          dropZone.classList.remove('drag-highlight');
+        });
+        dropZone.addEventListener('drop', function (e) {
+          e.preventDefault();
+          dropZone.classList.remove('drag-highlight');
+          var files = e.dataTransfer.files;
+          if (!files || !files.length) return;
+          var allText = '';
+          var remaining = files.length;
+          for (var fi = 0; fi < files.length; fi++) {
+            (function (file) {
+              var reader = new FileReader();
+              reader.onload = function () {
+                allText += reader.result + '\n';
+                remaining--;
+                if (remaining === 0) {
+                  dropZone.value = dropZone.value ? dropZone.value + '\n' + allText : allText;
+                }
+              };
+              reader.readAsText(file);
+            })(files[fi]);
+          }
+        });
+      }
+
+      // ─── 粘贴图片 ──────────────────────────────────
+      document.addEventListener('paste', function (e) {
+        // 仅当输入框有焦点时处理图片粘贴
+        if (document.activeElement !== document.getElementById('message-input')) return;
+        var items = e.clipboardData && e.clipboardData.items;
+        if (!items) return;
+        for (var i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image/') === 0) {
+            var file = items[i].getAsFile();
+            var reader = new FileReader();
+            reader.onload = function () {
+              var input = document.getElementById('message-input');
+              if (input) input.value += '\n![图片](' + reader.result + ')\n';
+            };
+            reader.readAsDataURL(file);
+          }
+        }
       });
     },
 
@@ -350,37 +420,4 @@
   } else {
     App.init();
   }
-
-  // ─── 文件拖拽到输入框 ──────────────────────────────
-  var dropZone = document.getElementById('message-input');
-  if (dropZone) {
-    dropZone.addEventListener('dragover', function (e) { e.preventDefault(); });
-    dropZone.addEventListener('drop', async function (e) {
-      e.preventDefault();
-      var files = e.dataTransfer.files;
-      if (!files || !files.length) return;
-      var allText = '';
-      for (var fi = 0; fi < files.length; fi++) {
-        try { allText += await files[fi].text() + '\n'; } catch (_) {}
-      }
-      dropZone.value = dropZone.value ? dropZone.value + '\n' + allText : allText;
-    });
-  }
-
-  // ─── 粘贴图片 ──────────────────────────────────────
-  document.addEventListener('paste', async function (e) {
-    var items = e.clipboardData && e.clipboardData.items;
-    if (!items) return;
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image/') === 0) {
-        var file = items[i].getAsFile();
-        var reader = new FileReader();
-        reader.onload = function () {
-          var input = document.getElementById('message-input');
-          if (input) input.value += '\n![图片](' + reader.result + ')\n';
-        };
-        reader.readAsDataURL(file);
-      }
-    }
-  });
 })();

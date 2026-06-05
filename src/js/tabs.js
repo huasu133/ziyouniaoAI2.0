@@ -295,6 +295,32 @@
         this._renderTabs();
       }
     },
+
+    /**
+     * 切换到下一个标签
+     */
+    nextTab: function () {
+      if (this.tabs.length <= 1) return;
+      var idx = -1;
+      for (var i = 0; i < this.tabs.length; i++) {
+        if (this.tabs[i].id === this.activeTabId) { idx = i; break; }
+      }
+      var nextIdx = (idx + 1) % this.tabs.length;
+      this.switchTab(this.tabs[nextIdx].id);
+    },
+
+    /**
+     * 切换到上一个标签
+     */
+    prevTab: function () {
+      if (this.tabs.length <= 1) return;
+      var idx = -1;
+      for (var i = 0; i < this.tabs.length; i++) {
+        if (this.tabs[i].id === this.activeTabId) { idx = i; break; }
+      }
+      var prevIdx = (idx - 1 + this.tabs.length) % this.tabs.length;
+      this.switchTab(this.tabs[prevIdx].id);
+    },
   };
 
   window.ZYN3 = window.ZYN3 || {};

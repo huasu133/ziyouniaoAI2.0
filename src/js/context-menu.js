@@ -17,8 +17,19 @@
     init: function () {
       var self = this;
 
+      // 先移除旧监听器，防止累积
+      if (this._contextMenuHandler) {
+        document.removeEventListener('contextmenu', this._contextMenuHandler);
+      }
+      if (this._clickHandler) {
+        document.removeEventListener('click', this._clickHandler);
+      }
+      if (this._keydownHandler) {
+        document.removeEventListener('keydown', this._keydownHandler);
+      }
+
       // 全局右键
-      document.addEventListener('contextmenu', function (e) {
+      this._contextMenuHandler = function (e) {
         // 检查是否在可显示菜单的元素上
         var target = e.target;
 
@@ -57,19 +68,22 @@
           self._showCodeMenu(e.clientX, e.clientY, codeBlock.textContent);
           return;
         }
-      });
+      };
+      document.addEventListener('contextmenu', this._contextMenuHandler);
 
       // 点击其他地方关闭菜单
-      document.addEventListener('click', function () {
+      this._clickHandler = function () {
         self.hide();
-      });
+      };
+      document.addEventListener('click', this._clickHandler);
 
       // Escape 关闭
-      document.addEventListener('keydown', function (e) {
+      this._keydownHandler = function (e) {
         if (e.key === 'Escape' && self.visible) {
           self.hide();
         }
-      });
+      };
+      document.addEventListener('keydown', this._keydownHandler);
     },
 
     /**
@@ -166,6 +180,7 @@
         {
           label: '搜索选中内容',
           action: function () {
+            // Electron 中 window.open 可能不在系统浏览器打开，但 href 方式仍可工作
             var query = encodeURIComponent(selectedText.substring(0, 200));
             window.open('https://www.google.com/search?q=' + query, '_blank', 'noopener');
           },

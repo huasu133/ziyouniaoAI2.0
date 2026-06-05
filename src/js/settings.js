@@ -84,6 +84,9 @@
       var modelSelect = document.getElementById('model-select');
       if (modelSelect) modelSelect.value = settings.model || 'deepseek-chat';
 
+      var styleSelect = document.getElementById('style-select');
+      if (styleSelect) styleSelect.value = settings.style || '';
+
       // P1: 加载后立即应用主题/字体设置
       this._applySettings(settings);
     },
@@ -101,7 +104,10 @@
       if (fontSizeSelect) settings.fontSize = fontSizeSelect.value;
 
       var tempRange = document.getElementById('setting-temperature');
-      if (tempRange) settings.temperature = parseFloat(tempRange.value);
+      if (tempRange) {
+        var t = parseFloat(tempRange.value);
+        settings.temperature = isNaN(t) ? 0.7 : t;
+      }
 
       var maxTokens = document.getElementById('setting-max-tokens');
       if (maxTokens) {
@@ -111,6 +117,9 @@
 
       var modelSelect = document.getElementById('model-select');
       if (modelSelect) settings.model = modelSelect.value;
+
+      var styleSelect = document.getElementById('style-select');
+      if (styleSelect) settings.style = styleSelect.value;
 
       Storage.setSettings(settings);
       this._applySettings(settings);
@@ -147,7 +156,7 @@
       var debouncedSave = Utils.debounce(function () { self._saveSettings(); }, 150);
 
       // 设置变更自动保存
-      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select'];
+      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select', 'style-select'];
 
       changeHandlers.forEach(function (id) {
         var el = document.getElementById(id);
@@ -213,6 +222,7 @@
           if (file.size > 50 * 1024 * 1024) {
             var App = window.ZYN3.App;
             if (App && App.showToast) App.showToast('文件过大（超过50MB），无法导入', 'error');
+            document.body.removeChild(input);
             return;
           }
           var Utils = window.ZYN3.Utils;
@@ -228,6 +238,8 @@
                 var Sidebar = window.ZYN3.Sidebar;
                 if (Tabs) Tabs.init();
                 if (Sidebar) Sidebar.render();
+                // 刷新设置面板 UI
+                self._loadSettings();
               } else {
                 if (App && App.showToast) App.showToast('导入失败：数据格式无效', 'error');
               }
@@ -235,12 +247,17 @@
               var App = window.ZYN3.App;
               if (App && App.showToast) App.showToast('导入失败：' + err.message, 'error');
             }
+            document.body.removeChild(input);
           }).catch(function (err) {
             var App = window.ZYN3.App;
             if (App && App.showToast) App.showToast('读取文件失败：' + err.message, 'error');
+            document.body.removeChild(input);
           });
+        } else {
+          document.body.removeChild(input);
         }
       });
+      document.body.appendChild(input);
       input.click();
     },
   };

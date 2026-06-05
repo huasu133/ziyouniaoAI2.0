@@ -114,6 +114,8 @@
      * 清空所有会话
      */
     clearAll: function () {
+      var Chat = window.ZYN3.Chat;
+      if (Chat && Chat.isGenerating) Chat.stopGeneration();
       if (confirm('确定清空所有会话历史？此操作不可撤销。')) {
         Storage.clearAllConversations();
         // 重新创建默认标签

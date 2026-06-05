@@ -13,6 +13,9 @@
   },
   "author": "Ziyouniao Team",
   "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^25.0.0"

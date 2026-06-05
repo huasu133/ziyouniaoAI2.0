@@ -54,6 +54,11 @@
       this.isGenerating = false;
       this._abortController = null;
       this.suppressAutoScroll = false;
+      // 从 Storage 加载输入历史
+      this.inputHistory = Storage.getInputHistory();
+      this.historyIndex = -1;
+      // 渲染记忆面板
+      this._renderMemoryPanel();
     },
 
     /**
@@ -114,6 +119,7 @@
       this.inputHistory.unshift(text);
       if (this.inputHistory.length > 50) this.inputHistory.pop();
       this.historyIndex = -1;
+      Storage.setInputHistory(this.inputHistory);
       input.value = '';
       Utils.autoResizeTextarea(input);
 
@@ -174,6 +180,16 @@
       }
 
       var self = this;
+
+      // 更新 token 估算（约 2.5 字符/token，中英文混合）
+      var tokenCount = document.getElementById('token-count');
+      if (tokenCount) {
+        var totalChars = 0;
+        for (var k = 0; k < apiMessages.length; k++) {
+          totalChars += apiMessages[k].content ? apiMessages[k].content.length : 0;
+        }
+        tokenCount.textContent = '~' + Math.ceil(totalChars / 2.5) + ' tokens';
+      }
 
       // P0-7: AbortController 来自 api.js
       this._abortController = API.sendMessage(apiMessages, {
@@ -498,7 +514,7 @@
 
       // 代码块 (```) — 先处理，因为内部不应被后续规则干扰
       // escapeHTML 已将内容中的 <>& 等转义为实体，代码块内安全
-      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, function (match, lang, code) {
+      html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, function (match, lang, code) {
         var langClass = lang ? ' class="language-' + Utils.escapeHTML(lang) + '"' : '';
         return '<pre><code' + langClass + '>' + code.trim() + '</code></pre>';
       });
@@ -639,44 +655,45 @@
 
     /**
      * 自动生成摘要+对话标题
+     * 后台调用，直接 fetch 不需要 AbortController
      */
-    _generateSummaryAndName: async function () {
+    _generateSummaryAndName: function () {
       if (this.messages.length < 2) return;
-      var tabId = this.currentTabId; // P0: 捕获当前标签，防异步竞态
+      var tabId = this.currentTabId;
       var prompt = '';
       for (var i = 0; i < this.messages.length; i++) {
         prompt += this.messages[i].role + ': ' + (this.messages[i].content || '').substring(0, 200) + '\n';
       }
       prompt += '\n请分别回复以下两项（用 --- 分隔）：\n1. 给这个对话起一个 5 字以内的标题\n2. 用2-3句话概述本次对话';
-      try {
-        var API = window.ZYN3.API;
-        var model = document.querySelector('.model-select');
-        model = model ? model.value : 'deepseek-chat';
-        var res = await fetch('http://127.0.0.1:18789/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, stream: false }),
-          signal: AbortSignal.timeout(30000),
-        });
-        var data = await res.json();
-        var result = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-        var parts = result.split('---');
-        var title = (parts[0] || '').replace(/["""]/g, '').trim().slice(0, 10) || '';
-        if (title && tabId) {
-          var Tabs = window.ZYN3.Tabs;
-          if (Tabs) Tabs.renameTab(tabId, title);
-        }
-        // 保存记忆
-        var summary = (parts[1] || result).trim().slice(0, 100);
-        if (summary) {
-          var Storage = window.ZYN3.Storage;
-          var memories = Storage.getMemories();
-          memories.push({ key: title || '对话', value: summary, time: Date.now() });
-          if (memories.length > 50) memories = memories.slice(-50);
-          Storage.setMemories(memories);
-          this._renderMemoryPanel();
-        }
-      } catch (_) { /* 静默失败 */ }
+      var modelSelect = document.querySelector('#model-select');
+      var model = modelSelect ? modelSelect.value : 'deepseek-chat';
+      var self = this;
+      fetch('http://127.0.0.1:18789/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, stream: false }),
+        signal: AbortSignal.timeout(30000),
+      })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          var result = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+          var parts = result.split('---');
+          var title = (parts[0] || '').replace(/["""]/g, '').trim().slice(0, 10) || '';
+          if (title && tabId) {
+            var Tabs = window.ZYN3.Tabs;
+            if (Tabs) Tabs.renameTab(tabId, title);
+          }
+          var summary = (parts[1] || result).trim().slice(0, 100);
+          if (summary) {
+            var Storage = window.ZYN3.Storage;
+            var memories = Storage.getMemories();
+            memories.push({ key: title || '对话', value: summary, time: Date.now() });
+            if (memories.length > 50) memories = memories.slice(-50);
+            Storage.setMemories(memories);
+            self._renderMemoryPanel();
+          }
+        })
+        .catch(function () { /* 静默失败 */ });
     },
 
     /**

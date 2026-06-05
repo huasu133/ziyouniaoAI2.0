@@ -191,6 +191,13 @@
   color: var(--t3);
 }
 
+/* drag-over 高亮 */
+.message-input.drag-highlight {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  box-shadow: 0 0 8px var(--accent-bg);
+}
+
 .btn-send,
 .btn-stop {
   width: 42px;
@@ -224,7 +231,8 @@
   color: #ffffff;
 }
 .btn-stop:hover {
-  background: #c0392b;
+  background: var(--red);
+  filter: brightness(1.2);
 }
 
 .hidden {

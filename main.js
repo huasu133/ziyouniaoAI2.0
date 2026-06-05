@@ -24,7 +24,7 @@ app.on('second-instance', () => {
 });
 
 // ─── 常量 ────────────────────────────────────────────────────────────────
-const API_BASE = 'http://127.0.0.1:18789';
+const API_BASE = 'http://127.0.0.1:18789'; // 本地网关，无需HTTPS
 const GATEWAY_HEALTH_URL = API_BASE + '/health';
 const GATEWAY_MAX_WAIT_MS = 10000;
 const GATEWAY_POLL_MS = 500;
@@ -42,6 +42,8 @@ let _renderCrashCount = 0;
 let _renderCrashWindowStart = 0;
 const MAX_RENDER_CRASHES = 3;
 const RENDER_CRASH_WINDOW_MS = 30000;
+let tray = null;
+let _gitSnapshotTimer = null;
 
 // ─── CSP 策略说明 ────────────────────────────────────────────────────────
 // CSP 策略在 src/index.html 的 <meta http-equiv="Content-Security-Policy">
@@ -301,28 +303,28 @@ function createWindow() {
       console.error('[main] Render crashed too many times, giving up');
       dialog.showErrorBox('界面崩溃', '渲染进程反复崩溃（30秒内超过3次）。\n请重启应用。');
       isQuitting = true;
-      app.quit();
+      doFinalQuit();
       return;
     }
 
     if (details.reason === 'launch-failed') {
       dialog.showErrorBox('启动失败', '渲染进程启动失败，请检查UI文件完整性。');
       isQuitting = true;
-      app.quit();
+      doFinalQuit();
       return;
     }
 
     if (details.reason === 'oom') {
       dialog.showErrorBox('内存不足', '渲染进程因内存不足被终止。\n请关闭部分对话标签后重试。');
       isQuitting = true;
-      app.quit();
+      doFinalQuit();
       return;
     }
 
     // crashed / killed: 尝试恢复
     setTimeout(function () {
       try {
-        if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
           mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'))
             .catch(function (err) {
               console.error('[main] Failed to reload after render crash:', err.message);
@@ -422,10 +424,12 @@ app.whenReady().then(async () => {
   }
 
   // ─── 托盘 ──────────────────────────────────────────
-  var trayIcon = path.join(__dirname, 'assets', 'icon.png');
-  var tray = null;
+  // 使用DataURL创建16x16紫色图标，不依赖 assets/icon.png 文件
+  var trayIcon = nativeImage.createFromDataURL(
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGPI8f3/nxLMMGrAqAGjBgwXAwDZLrcfg17eUgAAAABJRU5ErkJggg=='
+  );
   try {
-    tray = new Tray(nativeImage.createFromPath(trayIcon).resize({ width: 16, height: 16 }));
+    tray = new Tray(trayIcon.resize({ width: 16, height: 16 }));
     tray.setToolTip('自由鸟AI');
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: '显示自由鸟', click: function () { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
@@ -435,17 +439,23 @@ app.whenReady().then(async () => {
     tray.on('click', function () { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
   } catch (_) { console.log('[main] Tray not available'); }
 
-  // ─── Git 快照（启动后 10s + 每小时）─────────────
+  // ─── Git 快照（启动后 10s + 每小时）─ 仅本地 commit，不 push
   function gitSnapshot() {
-    var cp = require('child_process');
     var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     var dir = path.join(__dirname);
-    cp.exec('git -C "' + dir + '" add -A && git -C "' + dir + '" diff --cached --quiet || git -C "' + dir + '" commit -m "snapshot: ' + ts + '"', { timeout: 30000 }, function (err, stdout) {
-      if (err && !stdout.includes('nothing to commit')) console.error('[快照] 失败:', err.message);
+    // 使用 execFile 避免 shell 命令注入
+    execFile('git', ['-C', dir, 'add', '-A'], { timeout: 10000 }, function (err) {
+      if (err) { console.error('[快照] git add 失败:', err.message); return; }
+      execFile('git', ['-C', dir, 'diff', '--cached', '--quiet'], { timeout: 10000 }, function (err2) {
+        if (!err2) { /* 无变更，跳过 */ return; }
+        execFile('git', ['-C', dir, 'commit', '-m', 'snapshot: ' + ts], { timeout: 30000 }, function (err3) {
+          if (err3) console.error('[快照] 失败:', err3.message);
+        });
+      });
     });
   }
   setTimeout(gitSnapshot, 10000);
-  setInterval(gitSnapshot, 60 * 60 * 1000);
+  _gitSnapshotTimer = setInterval(gitSnapshot, 60 * 60 * 1000);
 
   // ─── 全局快捷键 Alt+Space ────────────────────────
   globalShortcut.register('Alt+Space', function () {
@@ -492,5 +502,7 @@ app.on('window-all-closed', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  if (_gitSnapshotTimer) { clearInterval(_gitSnapshotTimer); _gitSnapshotTimer = null; }
+  if (tray) { tray.destroy(); tray = null; }
   killGateway();
 });

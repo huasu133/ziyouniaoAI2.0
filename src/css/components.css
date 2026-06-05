@@ -409,7 +409,7 @@
 }
 .settings-note code {
   font-family: Menlo, Monaco, 'Courier New', monospace;
-  background: rgba(0,0,0,0.2);
+  background: var(--hover-bg);
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 11px;

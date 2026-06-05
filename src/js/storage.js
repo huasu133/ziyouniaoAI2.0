@@ -146,6 +146,7 @@
         temperature: 0.7,
         maxTokens: 4096,
         model: 'deepseek-chat',
+        style: '',
       });
     },
 
@@ -253,7 +254,7 @@
           this.setTabs(Tabs.tabs);
         }
 
-        // 同步设置
+        // 同步设置（确保退出前持久化内存中的最新设置）
         var settings = this.getSettings();
         if (settings) {
           this.setSettings(settings);
@@ -321,6 +322,8 @@
         }.bind(this));
 
         this.setTabs(existingTabs.concat(data.tabs));
+        // 导入 settings
+        if (data.settings) this.setSettings(data.settings);
         return true;
       } catch (err) {
         console.error('[Storage] Import failed:', err);

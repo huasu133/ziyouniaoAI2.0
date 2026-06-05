@@ -16,7 +16,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @param {Array} lessons
    * @returns {Promise<boolean>}
    */
-  saveLessons: (lessons) => ipcRenderer.invoke('save-lessons', lessons),
+  saveLessons: (lessons) => {
+    if (lessons.length > 1000) throw new Error('lessons data too large (max 1000)');
+    return ipcRenderer.invoke('save-lessons', lessons);
+  },
 
   /**
    * HTTP GET 请求（通过主进程转发，避免 CORS 限制）
@@ -30,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Function} unsubscribe - 调用以移除监听
    */
   onSaveAll: (callback) => {
+    if (typeof callback !== 'function') return;
     const handler = () => callback();
     ipcRenderer.on('save-all', handler);
     return () => {
