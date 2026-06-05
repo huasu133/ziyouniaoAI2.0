@@ -421,6 +421,8 @@
             contentEl.textContent = lastMsg.content;
           } else {
             contentEl.innerHTML = this._renderMarkdown(lastMsg.content);
+            // Prism.js 代码高亮 — 仅在代码块闭合时触发
+            this._highlightCodeBlocks(msgEl);
           }
         }
       }
@@ -481,6 +483,13 @@
             idx = end;
             if (idx < allMsgs.length) {
               requestAnimationFrame(renderBatch);
+            } else {
+              // Prism.js 代码高亮 — 所有消息渲染完成后
+              if (typeof Prism !== 'undefined') {
+                container.querySelectorAll('pre code[class*="language-"]').forEach(function (el) {
+                  try { Prism.highlightElement(el); } catch (e) {}
+                });
+              }
             }
           }
           requestAnimationFrame(renderBatch);
@@ -493,6 +502,18 @@
       msgs.forEach(function (msg) {
         self._renderMessage(msg);
       });
+
+      // Prism.js 代码高亮 — 对所有已渲染消息中的代码块应用高亮
+      if (typeof Prism !== 'undefined') {
+        var allCodeBlocks = container.querySelectorAll('pre code[class*="language-"]');
+        allCodeBlocks.forEach(function (codeEl) {
+          try {
+            Prism.highlightElement(codeEl);
+          } catch (e) {
+            console.warn('[Chat] Prism highlight error:', e);
+          }
+        });
+      }
 
       // 显示/隐藏欢迎页
       var welcome = document.getElementById('welcome-message');
@@ -550,6 +571,9 @@
         '</div>';
 
       container.appendChild(div);
+
+      // Prism.js 代码高亮
+      this._highlightCodeBlocks(div);
 
       // 复制按钮 — 手册 §5.3 原版
       var copyBtn = document.createElement('button');
@@ -891,6 +915,22 @@
       memories = memories.filter(function (m) { return m.key !== key; });
       Storage.setMemories(memories);
       this._renderMemoryPanel();
+    },
+
+    /**
+     * Prism.js 代码高亮 — 对消息内容中的代码块调用 Prism.highlightElement
+     * @param {HTMLElement} containerEl - 包含代码块的消息元素
+     */
+    _highlightCodeBlocks: function (containerEl) {
+      if (typeof Prism === 'undefined') return;
+      var codeBlocks = containerEl.querySelectorAll('pre code[class*="language-"]');
+      codeBlocks.forEach(function (codeEl) {
+        try {
+          Prism.highlightElement(codeEl);
+        } catch (e) {
+          console.warn('[Chat] Prism highlight error:', e);
+        }
+      });
     },
   };
 
