@@ -443,15 +443,16 @@ app.whenReady().then(async () => {
   function gitSnapshot() {
     var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     var dir = path.join(__dirname);
-    // 使用 execFile 避免 shell 命令注入
-    execFile('git', ['-C', dir, 'add', '-A'], { timeout: 10000 }, function (err) {
+    // 使用 execFile 避免 shell 命令注入，清代理防 SSL 错误
+    var gitEnv = Object.assign({}, process.env, { HTTP_PROXY: '', HTTPS_PROXY: '', http_proxy: '', https_proxy: '' });
+    execFile('git', ['-C', dir, 'add', '-A'], { timeout: 10000, env: gitEnv }, function (err) {
       if (err) { console.error('[快照] git add 失败:', err.message); return; }
-      execFile('git', ['-C', dir, 'diff', '--cached', '--quiet'], { timeout: 10000 }, function (err2) {
+      execFile('git', ['-C', dir, 'diff', '--cached', '--quiet'], { timeout: 10000, env: gitEnv }, function (err2) {
         if (!err2) { /* 无变更，跳过 */ return; }
-        execFile('git', ['-C', dir, 'commit', '-m', 'snapshot: ' + ts], { timeout: 30000 }, function (err3) {
+        execFile('git', ['-C', dir, 'commit', '-m', 'snapshot: ' + ts], { timeout: 30000, env: gitEnv }, function (err3) {
           if (err3) { console.error('[快照] commit 失败:', err3.message); return; }
           // 如有 remote 则 push，否则仅本地 commit
-          execFile('git', ['-C', dir, 'push'], { timeout: 30000 }, function () { /* 静默 */ });
+          execFile('git', ['-C', dir, 'push'], { timeout: 30000, env: gitEnv }, function () { /* 静默 */ });
         });
       });
     });
