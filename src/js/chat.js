@@ -516,23 +516,24 @@
             '<span class="message-time">' + Utils.formatTime(message.timestamp) + '</span>' +
           '</div>' +
           '<div class="message-content">' + contentHtml + '</div>' +
-          '<button class="msg-copy-btn" title="复制">📋</button>' +
         '</div>';
 
       container.appendChild(div);
 
-      // 复制按钮
-      var copyBtn = div.querySelector('.msg-copy-btn');
-      if (copyBtn) {
-        copyBtn.addEventListener('click', function () {
-          var contentEl = div.querySelector('.message-content');
-          var txt = contentEl ? contentEl.textContent : message.content;
-          navigator.clipboard.writeText(txt).then(function () {
-            copyBtn.textContent = '✅';
-            setTimeout(function () { copyBtn.textContent = '📋'; }, 2000);
-          }).catch(function () {});
-        });
-      }
+      // 复制按钮 — 手册 §5.3 原版
+      var copyBtn = document.createElement('button');
+      copyBtn.className = 'msg-copy';
+      copyBtn.innerHTML = '📋';
+      copyBtn.title = '复制消息';
+      copyBtn.onclick = function () {
+        var contentEl = div.querySelector('.message-content');
+        var txt = contentEl ? contentEl.textContent : message.content;
+        navigator.clipboard.writeText(txt).then(function () {
+          copyBtn.innerHTML = '✅';
+          setTimeout(function () { copyBtn.innerHTML = '📋'; }, 2000);
+        }).catch(function () {});
+      };
+      div.querySelector('.message-body').appendChild(copyBtn);
     },
 
     /**

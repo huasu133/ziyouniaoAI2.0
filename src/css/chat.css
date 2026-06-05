@@ -366,25 +366,14 @@
   background: var(--accent-bg);
 }
 
-/* ─── 消息复制按钮 ────────────────────────────────── */
-.message { position: relative; }
-.msg-copy-btn {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  padding: 2px 6px;
-  opacity: 0;
-  transition: opacity 0.2s;
-  color: var(--t2);
+/* ─── 消息复制按钮 — 手册 §5.3 ──────────────────────── */
+.message-body { position: relative; }
+.msg-copy {
+  position: absolute; right: -4px; top: 0;
+  background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; font-size: 12px;
+  padding: 2px 4px; opacity: 0; transition: opacity 0.2s;
+  color: var(--t2); line-height: 1;
 }
-.message:hover .msg-copy-btn { opacity: 1; }
-.message.user .msg-copy-btn { right: auto; left: 8px; }
-
-[data-theme="light"] .msg-copy-btn {
-  border-color: rgba(0,0,0,0.15);
-}
+.message:hover .msg-copy { opacity: 1; }
+.message.user .msg-copy { right: auto; left: -4px; }
