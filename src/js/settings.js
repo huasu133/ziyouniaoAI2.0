@@ -15,6 +15,8 @@
      */
     visible: false,
 
+    _themeTimer: null,
+
     /**
      * 初始化
      */
@@ -90,14 +92,7 @@
       var deepseekKeyEl = document.getElementById('setting-deepseek-key');
       if (deepseekKeyEl) deepseekKeyEl.value = settings.deepseekKey || '';
 
-      // P0: 加载搜索 API Key
-      var searchKeys = Storage.get('zyn3:search-keys') || {};
-      var tavilyKey = document.getElementById('setting-tavily-key');
-      var serperKey = document.getElementById('setting-serper-key');
-      if (tavilyKey) tavilyKey.value = searchKeys.tavily || '';
-      if (serperKey) serperKey.value = searchKeys.serper || '';
-
-      // P0-1: 加载搜索 API Key
+      // 加载搜索 API Key（通过 Storage 接口，避免双重命名空间）
       var searchKeys = Storage.getSearchKeys();
       var tavilyKeyEl = document.getElementById('setting-tavily-key');
       var serperKeyEl = document.getElementById('setting-serper-key');
@@ -141,23 +136,15 @@
       var deepseekKeyEl = document.getElementById('setting-deepseek-key');
       if (deepseekKeyEl) settings.deepseekKey = deepseekKeyEl.value.trim();
 
-      // P0: 保存搜索 API Key
-      var searchKeys = Storage.get('zyn3:search-keys') || {};
-      var tavilyKey = document.getElementById('setting-tavily-key');
-      var serperKey = document.getElementById('setting-serper-key');
-      if (tavilyKey) searchKeys.tavily = tavilyKey.value.trim();
-      if (serperKey) searchKeys.serper = serperKey.value.trim();
-      Storage.set('zyn3:search-keys', searchKeys);
-
-      Storage.setSettings(settings);
-
-      // P0-1: 单独保存搜索 API Key 到 zyn3:search-keys
+      // 保存搜索 API Key（通过 Storage 接口，避免双重命名空间）
       var tavilyKeyEl = document.getElementById('setting-tavily-key');
       var serperKeyEl = document.getElementById('setting-serper-key');
       Storage.setSearchKeys({
         tavily: tavilyKeyEl ? tavilyKeyEl.value.trim() : '',
         serper: serperKeyEl ? serperKeyEl.value.trim() : '',
       });
+
+      Storage.setSettings(settings);
 
       this._applySettings(settings);
     },
@@ -169,12 +156,14 @@
     _applySettings: function (settings) {
       if (!settings) settings = Storage.getSettings();
 
-      // 主题 — 加过渡类避免切换时的闪动
+      // 主题 — 加过渡类避免切换时的闪动，先清除旧计时器防止累积
       if (settings.theme) {
         document.documentElement.classList.add('theme-transitioning');
         document.documentElement.setAttribute('data-theme', settings.theme);
-        setTimeout(function () {
+        if (Settings._themeTimer) clearTimeout(Settings._themeTimer);
+        Settings._themeTimer = setTimeout(function () {
           document.documentElement.classList.remove('theme-transitioning');
+          Settings._themeTimer = null;
         }, 200);
       }
 
@@ -252,6 +241,21 @@
       input.accept = '.json';
 
       var self = this;
+      var cleaned = false;
+      function cleanInput() {
+        if (cleaned) return;
+        cleaned = true;
+        if (document.body.contains(input)) {
+          document.body.removeChild(input);
+        }
+      }
+      // 取消文件对话框时通过 window focus 事件清理泄漏的 input 元素
+      function onFocusCleanup() {
+        window.removeEventListener('focus', onFocusCleanup);
+        setTimeout(cleanInput, 100);
+      }
+      window.addEventListener('focus', onFocusCleanup);
+
       input.addEventListener('change', function () {
         if (input.files && input.files[0]) {
           var file = input.files[0];
@@ -259,7 +263,7 @@
           if (file.size > 50 * 1024 * 1024) {
             var App = window.ZYN3.App;
             if (App && App.showToast) App.showToast('文件过大（超过50MB），无法导入', 'error');
-            document.body.removeChild(input);
+            cleanInput();
             return;
           }
           var Utils = window.ZYN3.Utils;
@@ -287,14 +291,14 @@
               var App = window.ZYN3.App;
               if (App && App.showToast) App.showToast('导入失败：' + err.message, 'error');
             }
-            document.body.removeChild(input);
+            cleanInput();
           }).catch(function (err) {
             var App = window.ZYN3.App;
             if (App && App.showToast) App.showToast('读取文件失败：' + err.message, 'error');
-            document.body.removeChild(input);
+            cleanInput();
           });
         } else {
-          document.body.removeChild(input);
+          cleanInput();
         }
       });
       document.body.appendChild(input);

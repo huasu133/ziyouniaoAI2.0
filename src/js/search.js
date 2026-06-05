@@ -14,13 +14,13 @@
   var cacheKeys = [];
 
   /**
-   * 从 localStorage 读取搜索 API Key
+   * 从 Storage 接口读取搜索 API Key（统一命名空间，避免双前缀）
    * @returns {{ tavily?: string, serper?: string }}
    */
   function _getKeys() {
     try {
-      var raw = localStorage.getItem('zyn3:search-keys');
-      return raw ? JSON.parse(raw) : {};
+      var Storage = window.ZYN3 && window.ZYN3.Storage;
+      return Storage ? Storage.getSearchKeys() : {};
     } catch (_) {
       return {};
     }
@@ -131,20 +131,13 @@
         }
       }
 
-      // Claw 完全无结果：Tavily → Serper
+      // Claw 完全无结果：直接降级 Tavily
       var tav = await this._tavilySearch(query);
       if (tav.length > 0) {
         SEARCH_CACHE[query] = { results: tav, time: Date.now() };
         cacheKeys.push(query);
         if (cacheKeys.length > MAX_CACHE) { delete SEARCH_CACHE[cacheKeys.shift()]; }
         return { results: tav, source: 'tavily' };
-      }
-      var ser = await this._serperSearch(query);
-      if (ser.length > 0) {
-        SEARCH_CACHE[query] = { results: ser, time: Date.now() };
-        cacheKeys.push(query);
-        if (cacheKeys.length > MAX_CACHE) { delete SEARCH_CACHE[cacheKeys.shift()]; }
-        return { results: ser, source: 'serper' };
       }
       return { error: '搜索无结果' };
     },

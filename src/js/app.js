@@ -73,6 +73,9 @@
      */
     _bindEvents: function () {
       var self = this;
+      // P2: 去重保护，防止重复绑定事件
+      if (this._eventsBound) return;
+      this._eventsBound = true;
 
       // ─── 侧栏切换 ──────────────────────────────────
       var sidebarToggle = document.getElementById('btn-sidebar-toggle');
@@ -217,6 +220,8 @@
               return '- [' + (item.title || '无标题') + '](' + (item.url || '#') + ') ' + (item.snippet || '');
             }).join('\n') : (r.error || '无结果');
             Chat.addMessage('assistant', '**搜索: ' + q + '**\n' + resultsHtml);
+          }).catch(function (err) {
+            App.showToast('搜索失败: ' + (err.message || err), 'error');
           });
         });
       }
@@ -321,27 +326,42 @@
           dropZone.classList.remove('drag-highlight');
           var files = e.dataTransfer.files;
           if (!files || !files.length) return;
-          var allText = '';
-          var remaining = files.length;
+
+          // P1: 过滤文本文件后顺序读取，保证顺序
+          var textFiles = [];
           for (var fi = 0; fi < files.length; fi++) {
-            (function (file) {
-              // P0-6: 文件大小/类型检查
-              if (!file.type || (!file.type.startsWith('text/') && file.type !== 'application/json')) {
-                remaining--; return;
-              }
-              if (file.size > 10 * 1024 * 1024) { remaining--; return; }
-              var reader = new FileReader();
-              reader.onload = function () {
-                allText += reader.result + '\n';
-                remaining--;
-                if (remaining === 0) {
-                  dropZone.value = dropZone.value ? dropZone.value + '\n' + allText : allText;
-                }
-              };
-              reader.onerror = function () { remaining--; };
-              reader.readAsText(file);
-            })(files[fi]);
+            var f = files[fi];
+            // P0-6: 文件类型/大小检查
+            if (f.type && (f.type.startsWith('text/') || f.type === 'application/json') && f.size <= 10 * 1024 * 1024) {
+              textFiles.push(f);
+            }
           }
+          if (!textFiles.length) return;
+
+          var allText = '';
+          var idx = 0;
+          function readNext() {
+            if (idx >= textFiles.length) {
+              // P1: 在光标位置插入，而非替换整个内容
+              var start = dropZone.selectionStart;
+              var end = dropZone.selectionEnd;
+              var prefix = dropZone.value.substring(0, start);
+              var suffix = dropZone.value.substring(end);
+              dropZone.value = prefix + (prefix ? '\n' : '') + allText + suffix;
+              dropZone.selectionStart = dropZone.selectionEnd = start + allText.length + (prefix ? 1 : 0);
+              Utils.autoResizeTextarea(dropZone);
+              return;
+            }
+            var reader = new FileReader();
+            reader.onload = function () {
+              allText += (allText ? '\n' : '') + reader.result;
+              idx++;
+              readNext();
+            };
+            reader.onerror = function () { idx++; readNext(); };
+            reader.readAsText(textFiles[idx]);
+          }
+          readNext();
         });
       }
 
@@ -364,6 +384,39 @@
             reader.readAsDataURL(file);
           }
         }
+      });
+
+      // ─── 全局文件拖放穿透指示 ──────────────────────
+      // P2: body级drag事件，dragover时显示拖放遮罩
+      var dragCounter = 0;
+      document.body.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragCounter++;
+        var overlay = document.getElementById('drag-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'drag-overlay';
+          overlay.className = 'drag-overlay';
+          overlay.innerHTML = '<div class="drag-overlay-text">释放文件以粘贴文本</div>';
+          document.body.appendChild(overlay);
+        }
+        overlay.style.display = 'flex';
+      });
+      document.body.addEventListener('dragleave', function (e) {
+        e.preventDefault();
+        dragCounter--;
+        if (dragCounter <= 0) {
+          dragCounter = 0;
+          var overlay = document.getElementById('drag-overlay');
+          if (overlay) overlay.style.display = 'none';
+        }
+      });
+      document.body.addEventListener('drop', function (e) {
+        e.preventDefault();
+        dragCounter = 0;
+        var overlay = document.getElementById('drag-overlay');
+        if (overlay) overlay.style.display = 'none';
       });
     },
 

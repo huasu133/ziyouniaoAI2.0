@@ -307,4 +307,13 @@
   .sidebar.collapsed {
     transform: translateX(-100%);
   }
+  /* P1: 侧栏打开时加黑色遮罩，点击遮罩关闭侧栏 */
+  .sidebar:not(.collapsed)::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    top: 44px;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: -1;
+  }
 }

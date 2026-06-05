@@ -50,7 +50,7 @@
 
       if (!apiKey) {
         onError(new Error('请先在设置面板输入 DeepSeek API Key'));
-        return null;
+        return abortController;
       }
 
       fetch(DEEPSEEK_BASE + '/v1/chat/completions', {

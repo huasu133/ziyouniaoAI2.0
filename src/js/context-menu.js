@@ -188,6 +188,8 @@
                   return '- [' + (item.title || '') + '](' + (item.url || '#') + ') ' + (item.snippet || '');
                 }).join('\n') : (r.error || '无结果');
                 Chat.addMessage('assistant', '**搜索: ' + selectedText.substring(0, 50) + '**\n' + resultsHtml);
+              }).catch(function (err) {
+                console.error('[ContextMenu] Search failed:', err);
               });
             }
           },

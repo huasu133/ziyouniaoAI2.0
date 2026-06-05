@@ -390,6 +390,13 @@
 .settings-input::placeholder {
   color: var(--t3);
 }
+/* P1: 覆盖浏览器 autofill 样式，保持暗/亮主题一致 */
+.settings-input:-webkit-autofill,
+.settings-input:autofill {
+  -webkit-box-shadow: 0 0 0 30px var(--bg3) inset !important;
+  -webkit-text-fill-color: var(--t1) !important;
+  caret-color: var(--t1);
+}
 
 .settings-btn {
   width: 100%;
@@ -494,6 +501,8 @@
 
 /* ─── 记忆面板 ─────────────────────────────────────── */
 .mem-item {
+  display: flex;
+  align-items: center;
   padding: 4px 0;
   border-bottom: 1px solid var(--border);
   line-height: 1.4;
@@ -513,7 +522,7 @@
 /* ─── Toast 重试按钮 ───────────────────────────────── */
 .toast-retry {
   background: var(--hover-overlay);
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid var(--hover-overlay);
   border-radius: 3px;
   color: var(--t1);
   font-size: 12px;
@@ -522,7 +531,8 @@
   margin-left: 8px;
 }
 .toast-retry:hover {
-  background: rgba(255,255,255,0.2);
+  background: var(--hover-overlay);
+  filter: brightness(1.5);
 }
 
 /* ─── 记忆面板删除按钮 ────────────────────────────── */

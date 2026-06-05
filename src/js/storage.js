@@ -314,6 +314,7 @@
         tabs: tabs,
         tabMessages: tabData,
         settings: this.getSettings(),
+        searchKeys: this.getSearchKeys(),
       };
     },
 
@@ -325,6 +326,10 @@
     importData: function (data) {
       try {
         if (!data || !data.tabs || !Array.isArray(data.tabs)) return false;
+        // P2: 版本兼容检查
+        if (data.version && data.version !== '3.0') {
+          console.warn('[Storage] Import version mismatch: ' + data.version + ' (expected 3.0), attempting best-effort import');
+        }
         const existingTabs = this.getTabs();
         const existingIds = {};
         existingTabs.forEach(function (t) { existingIds[t.id] = true; });
@@ -345,6 +350,8 @@
         this.setTabs(existingTabs.concat(data.tabs));
         // 导入 settings
         if (data.settings) this.setSettings(data.settings);
+        // 导入 searchKeys
+        if (data.searchKeys) this.setSearchKeys(data.searchKeys);
         return true;
       } catch (err) {
         console.error('[Storage] Import failed:', err);

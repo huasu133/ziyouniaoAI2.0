@@ -84,6 +84,7 @@
       };
       this.tabs.push(tab);
       this.activeTabId = tab.id;
+      Chat._renderAll = false; // P1: 重置懒加载标志
       this._saveTabs();
       Storage.setActiveTab(this.activeTabId);
       this._renderTabs();
@@ -150,6 +151,10 @@
         tab.title = '新对话';
         tab.updatedAt = Date.now();
         tab.messageCount = 0;
+        // P1: 重置懒加载标志
+        Chat._renderAll = false;
+        // P1: 显式调用渲染，确保UI更新
+        try { Chat.renderMessages(); } catch (e) {}
         this._saveTabs();
         this._renderTabs();
         return;

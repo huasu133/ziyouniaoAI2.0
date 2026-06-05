@@ -173,6 +173,7 @@
         });
 
       // 风格预设 — 首次对话时注入 system prompt
+      // P2: 风格预设目前硬编码，后续可扩展为可自定义预设配置
       var styleSelect = document.getElementById('style-select');
       if (styleSelect && styleSelect.value && apiMessages.length <= 1) {
         var styles = {
@@ -188,7 +189,8 @@
       }
 
       // P0: 历史裁剪 — 使用模型上下文窗口(128K tokens)，非输出maxTokens
-      // DeepSeek 上下文为 128K tokens，设阈值 64K (~262K 字符，中英文混合约2.5字符/token)
+      // DeepSeek 上下文为 128K tokens，设阈值 64K
+      // P1: 中文约 1.5 字符/token，英文约 4 字符/token，中英混合取 1.5 更安全
       var CONTEXT_WINDOW = 65536;
       var totalChars = 0;
       var cutoff = -1;
@@ -196,7 +198,7 @@
         // P1: 跳过 system prompt，不参与裁剪计算
         if (apiMessages[j].role === 'system') continue;
         totalChars += (apiMessages[j].content ? apiMessages[j].content.length : 0);
-        if (totalChars / 2.5 > CONTEXT_WINDOW) {
+        if (totalChars / 1.5 > CONTEXT_WINDOW) {
           cutoff = j;
           break;
         }
@@ -207,14 +209,14 @@
 
       var self = this;
 
-      // 更新 token 估算（约 2.5 字符/token，中英文混合）
+      // 更新 token 估算（P1: 中文约 1.5 字符/token）
       var tokenCount = document.getElementById('token-count');
       if (tokenCount) {
         var tokenChars = 0;
         for (var k = 0; k < apiMessages.length; k++) {
           tokenChars += apiMessages[k].content ? apiMessages[k].content.length : 0;
         }
-        tokenCount.textContent = '~' + Math.ceil(tokenChars / 2.5) + ' tokens';
+        tokenCount.textContent = '~' + Math.ceil(tokenChars / 1.5) + ' tokens';
       }
 
       // P0-7: AbortController 来自 api.js
@@ -580,6 +582,9 @@
 
       // 代码块 (```) — 先处理，因为内部不应被后续规则干扰
       // escapeHTML 已将内容中的 <>& 等转义为实体，代码块内安全
+      // P1: [\s\S]*? 为非贪婪匹配最近闭合的 ```。
+      // 若 AI 输出在代码块内嵌套 ```（如 markdown 示例），
+      // 贪婪版会跨多个块吞噬，非贪婪可最小化错误配对，保持各块独立。
       html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, function (match, lang, code) {
         var langClass = lang ? ' class="language-' + Utils.escapeHTML(lang) + '"' : '';
         return '<pre><code' + langClass + '>' + code.trim() + '</code></pre>';
@@ -765,23 +770,26 @@
         .then(function (res) { return res.json(); })
         .then(function (data) {
           var result = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-          var parts = result.split('---');
-          var title = (parts[0] || '').replace(/["""]/g, '').trim().slice(0, 10) || '';
+          // P1: 用最后出现的 --- 分隔，避免 AI 响应正文中含 --- 导致错位
+          var lastSep = result.lastIndexOf('---');
+          var title = lastSep > 0 ? result.substring(0, lastSep).replace(/["""]/g, '').trim().slice(0, 10) : '';
           if (title && tabId) {
             var Tabs = window.ZYN3.Tabs;
             if (Tabs) Tabs.renameTab(tabId, title);
           }
           // 第二部分：结构化摘要（渲染到右侧面板）
-          var summary = (parts[1] || '').trim();
+          var summary = lastSep > 0 ? result.substring(lastSep + 3).trim() : '';
           if (summary) {
             // P1-11: 先转义 HTML 再应用正则，防止 XSS
             var Utils = window.ZYN3.Utils;
             var html = Utils.escapeHTML(summary)
               .replace(/## (.+)/g, '<h3>$1</h3>')
               .replace(/- (.+)/g, '<li>$1</li>');
-            // 渲染到记忆面板
-            var panel = document.getElementById('memory-panel');
-            if (panel) panel.innerHTML = html;
+            // P1: 渲染前检查当前标签，防止异步回调时标签已切换
+            if (tabId === self.currentTabId) {
+              var panel = document.getElementById('memory-panel');
+              if (panel) panel.innerHTML = html;
+            }
             // 保存记忆
             var Storage = window.ZYN3.Storage;
             var memories = Storage.getMemories();
@@ -806,7 +814,7 @@
       lessons.push({ category: category, lesson: String(lesson).slice(0, 500), time: Date.now() });
       if (lessons.length > 100) lessons = lessons.slice(-100);
       Storage.setLessons(lessons);
-      this._renderMemoryPanel();
+      this._loadLessonsPanel();
     },
 
     /**

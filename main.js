@@ -5,6 +5,7 @@ const { spawn, execFile } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs');
 const http = require('http');
+const https = require('https');
 
 const execFileAsync = promisify(execFile);
 
@@ -51,7 +52,7 @@ let _gitSnapshotTimer = null;
 // 中定义。实际策略:
 //   default-src 'self'; script-src 'self' 'unsafe-inline';
 //   style-src 'self' 'unsafe-inline';
-//   connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev;
+//   connect-src http://127.0.0.1:18789 https://api.deepseek.com https://www.claw-search.com https://api.tavily.com https://google.serper.dev;
 //   img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';
 // 说明: connect-src 包含搜索域名（Claw/Tavily/Serper），
 //       搜索功能需要这些外部连接；unsafe-inline 因架构约束保留。
@@ -158,7 +159,11 @@ function waitForGateway() {
 function startGateway(openclawPath) {
   // P1: macOS GUI PATH 扩展
   const homeDir = os.homedir();
-  const env = { ...process.env };
+  const env = {
+    PATH: process.env.PATH || '',
+    HOME: process.env.HOME || homeDir,
+    USER: process.env.USER || '',
+  };
   const extraPaths = [
     path.join(homeDir, '.openclaw', 'bin'),
     path.join(homeDir, '.local', 'bin'),
@@ -385,8 +390,7 @@ ipcMain.handle('get-lessons', () => {
 
 ipcMain.handle('save-lessons', (_event, lessons) => {
   // P1-3: 类型与大小校验
-  if (!Array.isArray(lessons)) return false;
-  if (JSON.stringify(lessons).length > 500_000) return false;
+  if (!Array.isArray(lessons) || lessons.length > 1000) return false;
   const lessonsPath = path.join(app.getPath('userData'), 'zyn3-lessons.json');
   try {
     fs.writeFileSync(lessonsPath, JSON.stringify(lessons, null, 2), 'utf8');
@@ -448,7 +452,7 @@ ipcMain.handle('fetch-url', async (_event, url) => {
 
   return new Promise((resolve) => {
     var protocol = url.startsWith('https:') ? 'https:' : 'http:';
-    var lib = protocol === 'https:' ? require('https') : http;
+    var lib = protocol === 'https:' ? https : http;
     var req = lib.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Ziyouniao/3.0)' } }, function (res) {
       let data = '';
       res.on('data', function (chunk) {
@@ -534,7 +538,7 @@ app.whenReady().then(async () => {
     );
   }
   try {
-    tray = new Tray(trayIcon.resize({ width: 16, height: 16 }));
+    tray = new Tray(trayIcon.resize({ width: 32, height: 32 }));
     tray.setToolTip('自由鸟AI');
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: '显示自由鸟', click: function () { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
@@ -616,5 +620,4 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   if (_gitSnapshotTimer) { clearInterval(_gitSnapshotTimer); _gitSnapshotTimer = null; }
   if (tray) { tray.destroy(); tray = null; }
-  killGateway();
 });
