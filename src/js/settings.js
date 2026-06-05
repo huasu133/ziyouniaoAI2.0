@@ -187,7 +187,7 @@
       var debouncedSave = Utils.debounce(function () { self._saveSettings(); }, 150);
 
       // 设置变更自动保存
-      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select', 'style-select', 'setting-tavily-key', 'setting-serper-key'];
+      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select', 'style-select', 'setting-tavily-key', 'setting-serper-key', 'setting-deepseek-key'];
 
       changeHandlers.forEach(function (id) {
         var el = document.getElementById(id);

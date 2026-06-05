@@ -7,7 +7,7 @@
   <!-- connect-src 包含搜索域名（Claw/Tavily/Serper），搜索功能需要这些外部连接 -->
   <!-- 所有外部域名访问通过IPC代理，connect-src仅允许本地网关 -->
   <!-- img-src data: 用于图片粘贴 base64 场景 -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev https://api.deepseek.com; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta name="referrer" content="no-referrer">
   <title>自由鸟AI</title>
@@ -151,11 +151,16 @@
           </div>
         </div>
 
-        <!-- 网关 - P0-13: 无API Key字段 -->
+        <!-- API 配置 -->
         <div class="settings-section">
-          <h3 class="settings-section-title">网关</h3>
+          <h3 class="settings-section-title">API 配置</h3>
           <div class="settings-item">
-            <span class="settings-label">API 地址</span>
+            <label class="settings-label">DeepSeek API Key</label>
+            <input type="password" id="setting-deepseek-key" class="settings-input" placeholder="sk-...">
+            <span class="settings-hint">直连 DeepSeek（OpenClaw 网关仅用于健康检查）</span>
+          </div>
+          <div class="settings-item">
+            <span class="settings-label">网关地址</span>
             <span class="settings-value-static">http://127.0.0.1:18789</span>
           </div>
           <div class="settings-item">

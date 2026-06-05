@@ -147,6 +147,7 @@
         maxTokens: 4096,
         model: 'deepseek-chat',
         style: '',
+        deepseekKey: '',
       });
     },
 

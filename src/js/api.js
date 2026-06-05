@@ -1,11 +1,15 @@
 /**
  * api.js — API 通信 + SSE 解析
  * 命名空间: window.ZYN3.API
+ *
+ * 2026-06-05: OpenClaw 2026.6.1 网关不提供 /v1/chat REST API。
+ * 改为直连 DeepSeek API。OpenClaw 网关仅用于健康检查和高级功能。
  */
 (function () {
   'use strict';
 
-  const API_BASE = 'http://127.0.0.1:18789';
+  const GATEWAY_BASE = 'http://127.0.0.1:18789';
+  const DEEPSEEK_BASE = 'https://api.deepseek.com';
 
   const API = {
     /**
@@ -40,10 +44,15 @@
         stream: true,
       });
 
-      fetch(API_BASE + '/v1/chat/completions', {
+      // 获取 API Key（优先 localStorage，回退 OpenClaw 网关不暴露Key）
+      var Storage = window.ZYN3 && window.ZYN3.Storage;
+      var apiKey = Storage ? (Storage.getSettings().deepseekKey || '') : '';
+
+      fetch(DEEPSEEK_BASE + '/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + apiKey,
           'Accept': 'text/event-stream',
         },
         body: body,
