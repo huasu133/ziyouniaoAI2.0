@@ -434,7 +434,7 @@ app.whenReady().then(async () => {
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: '显示自由鸟', click: function () { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
       { type: 'separator' },
-      { label: '退出', click: function () { isQuitting = true; app.quit(); } },
+      { label: '退出', click: function () { app.quit(); } },
     ]));
     tray.on('click', function () { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
   } catch (_) { console.log('[main] Tray not available'); }

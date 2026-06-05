@@ -260,7 +260,7 @@
         }
 
         // Ctrl+W: 关闭当前标签（不在输入框中触发）
-        if (e.ctrlKey && e.key === 'w' && e.target.tagName !== 'TEXTAREA') {
+        if (e.ctrlKey && e.key === 'w' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
           e.preventDefault();
           Tabs.closeTab(Chat.currentTabId);
         }

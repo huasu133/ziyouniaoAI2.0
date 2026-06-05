@@ -292,7 +292,14 @@
         tab.updatedAt = Date.now();
         tab.messageCount = (Storage.getTabMessages(tabId) || []).length;
         this._saveTabs();
-        this._renderTabs();
+        // 防抖渲染 — 流式输出时避免每秒渲染100次标签栏
+        if (!this._renderTimer) {
+          var self = this;
+          this._renderTimer = setTimeout(function () {
+            self._renderTabs();
+            self._renderTimer = null;
+          }, 200);
+        }
       }
     },
 

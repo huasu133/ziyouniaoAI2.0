@@ -180,9 +180,16 @@
         {
           label: '搜索选中内容',
           action: function () {
-            // Electron 中 window.open 可能不在系统浏览器打开，但 href 方式仍可工作
-            var query = encodeURIComponent(selectedText.substring(0, 200));
-            window.open('https://www.google.com/search?q=' + query, '_blank', 'noopener');
+            var Search = window.ZYN3.Search;
+            var Chat = window.ZYN3.Chat;
+            if (Search && Chat) {
+              Search.searchWeb(selectedText.substring(0, 200)).then(function (r) {
+                var resultsHtml = r.results ? r.results.slice(0, 5).map(function (item) {
+                  return '- [' + (item.title || '') + '](' + (item.url || '#') + ') ' + (item.snippet || '');
+                }).join('\n') : (r.error || '无结果');
+                Chat.addMessage('assistant', '**搜索: ' + selectedText.substring(0, 50) + '**\n' + resultsHtml);
+              });
+            }
           },
         },
       ]);
