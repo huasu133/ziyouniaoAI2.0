@@ -61,6 +61,17 @@
           return;
         }
 
+          // 侧栏会话列表右键
+        var convItem = target.closest('.conversation-item');
+        if (convItem) {
+          e.preventDefault();
+          var tabId = convItem.getAttribute('data-tab-id');
+          var titleEl = convItem.querySelector('.conversation-item-title');
+          var currentTitle = titleEl ? titleEl.textContent : '';
+          self._showSidebarConvMenu(e.clientX, e.clientY, tabId, currentTitle);
+          return;
+        }
+
         // 代码块右键
         var codeBlock = target.closest('pre code');
         if (codeBlock) {
@@ -319,6 +330,92 @@
         var Storage = window.ZYN3.Storage;
         Storage.setTabMessages(Chat.currentTabId, Chat.messages);
       }
+    },
+    /**
+     * 侧栏会话列表右键菜单
+     * @param {number} x
+     * @param {number} y
+     * @param {string} tabId
+     * @param {string} currentTitle
+     */
+    _showSidebarConvMenu: function (x, y, tabId, currentTitle) {
+      var self = this;
+      this.show(x, y, [
+        {
+          label: '重命名',
+          icon: '✏️',
+          action: function () {
+            self._renameSidebarItem(tabId, currentTitle);
+          },
+        },
+        { divider: true },
+        {
+          label: '删除对话',
+          danger: true,
+          icon: '🗑️',
+          action: function () {
+            self._deleteSidebarItem(tabId);
+          },
+        },
+      ]);
+    },
+
+    /**
+     * 行内重命名侧栏会话
+     */
+    _renameSidebarItem: function (tabId, currentTitle) {
+      var convItem = document.querySelector('.conversation-item[data-tab-id="' + tabId + '"]');
+      if (!convItem) return;
+      var titleEl = convItem.querySelector('.conversation-item-title');
+      if (!titleEl) return;
+
+      // 创建输入框替换标题
+      var input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'conv-rename-input';
+      input.value = currentTitle;
+      input.maxLength = 100;
+      titleEl.style.display = 'none';
+      titleEl.parentNode.insertBefore(input, titleEl.nextSibling);
+      input.focus();
+      input.select();
+
+      var cleanup = function (save) {
+        if (save) {
+          var newTitle = input.value.trim() || '新对话';
+          var Tabs = window.ZYN3.Tabs;
+          if (Tabs) {
+            Tabs.renameTab(tabId, newTitle);
+          }
+        }
+        if (input.parentNode) input.parentNode.removeChild(input);
+        titleEl.style.display = '';
+      };
+
+      input.addEventListener('blur', function () { cleanup(true); });
+
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          cleanup(true);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cleanup(false);
+        }
+      });
+    },
+
+    /**
+     * 删除侧栏会话
+     */
+    _deleteSidebarItem: function (tabId) {
+      if (!confirm('确定删除此对话？')) return;
+      var Tabs = window.ZYN3.Tabs;
+      if (Tabs) {
+        Tabs.closeTab(tabId);
+      }
+      var Sidebar = window.ZYN3.Sidebar;
+      if (Sidebar) Sidebar.render();
     },
   };
 

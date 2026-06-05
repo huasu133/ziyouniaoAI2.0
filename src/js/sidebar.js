@@ -107,9 +107,55 @@
       list.querySelectorAll('.conversation-item-delete').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
           e.stopPropagation();
+          if (!confirm('确定删除此对话？')) return;
           var tabId = btn.getAttribute('data-tab-id');
           Tabs.closeTab(tabId);
           self.render();
+        });
+      });
+
+      // 双击标题行内重命名
+      list.querySelectorAll('.conversation-item-title').forEach(function (titleEl) {
+        titleEl.addEventListener('dblclick', function (e) {
+          e.stopPropagation();
+          var convItem = titleEl.closest('.conversation-item');
+          if (!convItem) return;
+          var tabId = convItem.getAttribute('data-tab-id');
+          var currentTitle = titleEl.textContent;
+
+          // 创建输入框替换标题
+          var input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'conv-rename-input';
+          input.value = currentTitle;
+          input.maxLength = 100;
+          titleEl.style.display = 'none';
+          titleEl.parentNode.insertBefore(input, titleEl.nextSibling);
+          input.focus();
+          input.select();
+
+          var cleanup = function (save) {
+            if (save) {
+              var newTitle = input.value.trim() || '新对话';
+              Tabs.renameTab(tabId, newTitle);
+              self.render();
+            } else {
+              titleEl.style.display = '';
+            }
+            if (input.parentNode) input.parentNode.removeChild(input);
+          };
+
+          input.addEventListener('blur', function () { cleanup(true); });
+
+          input.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter') {
+              ev.preventDefault();
+              cleanup(true);
+            } else if (ev.key === 'Escape') {
+              ev.preventDefault();
+              cleanup(false);
+            }
+          });
         });
       });
     },

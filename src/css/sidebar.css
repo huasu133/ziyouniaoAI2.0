@@ -130,6 +130,20 @@
   color: var(--red);
 }
 
+/* ─── 重命名输入框 ──────────────────────────────────── */
+.conv-rename-input {
+  width: 100%;
+  background: var(--bg3);
+  color: var(--t1);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 13px;
+  outline: none;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
 /* ─── 空状态 ────────────────────────────────────────── */
 .conversation-empty {
   display: flex;

@@ -174,7 +174,7 @@
      * @returns {Promise<Array>}
      */
     listModels: function () {
-      return fetch(API_BASE + '/v1/models', {
+      return fetch(DEEPSEEK_BASE + '/v1/models', {
         method: 'GET',
         mode: 'cors',
         signal: AbortSignal.timeout(5000),
