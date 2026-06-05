@@ -62,6 +62,16 @@
 
     <!-- 中间聊天区 -->
     <main id="chat-area" class="chat-area">
+      <div class="chat-header">
+        <button id="btn-history" class="chat-header-btn" title="历史提问">☰</button>
+        <span class="chat-header-title">自由鸟AI</span>
+        <div id="history-popup" class="history-popup hidden">
+          <div class="history-popup-header">
+            <span>历史提问</span>
+          </div>
+          <div id="history-list" class="history-list"></div>
+        </div>
+      </div>
       <div id="messages-container" class="messages-container">
         <div class="welcome-message" id="welcome-message">
           <div class="welcome-icon">

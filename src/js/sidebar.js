@@ -88,6 +88,7 @@
               '<div class="conversation-item-preview">' + Utils.escapeHTML(preview || '空对话') + '</div>' +
             '</div>' +
             '<div class="conversation-item-time">' + Utils.formatRelativeDate(tab.updatedAt) + '</div>' +
+            '<button class="conversation-item-folder" data-tab-id="' + Utils.escapeHTML(tab.id) + '" title="打开数据文件夹">📁</button>' +
             '<button class="conversation-item-delete" data-tab-id="' + Utils.escapeHTML(tab.id) + '" title="删除">✕</button>' +
           '</div>';
       }
@@ -194,6 +195,79 @@
           item.style.display = 'none';
         }
       });
+    },
+
+    // ─── 历史提问弹出层 ──────────────────────────
+    /**
+     * 渲染历史弹出层
+     */
+    renderHistoryPopup: function () {
+      var list = document.getElementById('history-list');
+      if (!list) return;
+
+      var tabs = Storage.getTabs();
+      var activeTab = Storage.getActiveTab();
+
+      if (!tabs || !Array.isArray(tabs) || tabs.length === 0) {
+        list.innerHTML = '<div class="history-empty">暂无历史提问</div>';
+        return;
+      }
+
+      var html = '';
+      for (var i = tabs.length - 1; i >= 0; i--) {
+        var tab = tabs[i];
+        var isActive = tab.id === activeTab;
+        var messages = Storage.getTabMessages(tab.id) || [];
+        var lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+        var preview = lastMsg ? Utils.getMessagePreview(lastMsg.content) : '';
+
+        html += '' +
+          '<div class="conversation-item' + (isActive ? ' active' : '') + '" data-tab-id="' + Utils.escapeHTML(tab.id) + '">' +
+            '<div class="conversation-item-icon">' +
+              '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
+            '</div>' +
+            '<div class="conversation-item-info">' +
+              '<div class="conversation-item-title">' + Utils.escapeHTML(tab.title || '新对话') + '</div>' +
+              '<div class="conversation-item-preview">' + Utils.escapeHTML(preview || '空对话') + '</div>' +
+            '</div>' +
+          '</div>';
+      }
+      list.innerHTML = html;
+
+      // 绑定点击事件
+      var self = this;
+      list.querySelectorAll('.conversation-item').forEach(function (el) {
+        el.addEventListener('click', function () {
+          var tabId = el.getAttribute('data-tab-id');
+          Tabs.switchTab(tabId);
+          self.render();
+          self.renderHistoryPopup();
+          self.closeHistoryPopup();
+        });
+      });
+    },
+
+    /**
+     * 切换历史弹出层
+     */
+    toggleHistoryPopup: function () {
+      var popup = document.getElementById('history-popup');
+      if (!popup) return;
+      var isHidden = popup.classList.contains('hidden');
+      if (isHidden) {
+        this.renderHistoryPopup();
+        popup.classList.remove('hidden');
+      } else {
+        popup.classList.add('hidden');
+      }
+    },
+
+    /**
+     * 关闭历史弹出层
+     */
+    closeHistoryPopup: function () {
+      var popup = document.getElementById('history-popup');
+      if (popup) popup.classList.add('hidden');
     },
   };
 

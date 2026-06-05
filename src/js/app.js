@@ -67,6 +67,24 @@
         });
       }
 
+      // ─── 历史提问弹出层 ────────────────────────────
+      var historyBtn = document.getElementById('btn-history');
+      if (historyBtn) {
+        historyBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          Sidebar.toggleHistoryPopup();
+        });
+      }
+
+      // 点击其他地方关闭历史弹出层
+      document.addEventListener('click', function (e) {
+        var popup = document.getElementById('history-popup');
+        if (!popup || popup.classList.contains('hidden')) return;
+        if (!e.target.closest('#btn-history') && !e.target.closest('#history-popup')) {
+          popup.classList.add('hidden');
+        }
+      });
+
       // ─── 侧栏搜索 ──────────────────────────────────
       var sidebarSearch = document.getElementById('sidebarSearch');
       if (sidebarSearch) {
