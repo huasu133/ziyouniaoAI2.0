@@ -82,7 +82,8 @@
               }, 60000);
             });
 
-            Promise.race([readPromise, timeoutPromise]).then(function (result) {
+            Promise.race([readPromise, timeoutPromise])
+              .then(function (result) {
               clearTimeout(timeoutId);
               if (result.done) {
                 // 处理缓冲区剩余数据
@@ -108,6 +109,7 @@
 
               readChunk();
             }).catch(function (err) {
+              reader.cancel(); // P0-7: 释放reader资源
               if (err.name === 'AbortError') {
                 onDone(fullText || '(已停止)');
               } else {

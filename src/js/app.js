@@ -46,7 +46,7 @@
         var indicator = document.getElementById('statusIndicator');
         if (!indicator) return;
         try {
-          var res = await fetch('http://localhost:18789/health', { signal: AbortSignal.timeout(3000) });
+          var res = await fetch('http://127.0.0.1:18789/health', { signal: AbortSignal.timeout(3000) });
           if (res.ok) {
             indicator.innerHTML = '🟢';
             indicator.title = '已连接 OpenClaw';
@@ -325,6 +325,11 @@
           var remaining = files.length;
           for (var fi = 0; fi < files.length; fi++) {
             (function (file) {
+              // P0-6: 文件大小/类型检查
+              if (!file.type || (!file.type.startsWith('text/') && file.type !== 'application/json')) {
+                remaining--; return;
+              }
+              if (file.size > 10 * 1024 * 1024) { remaining--; return; }
               var reader = new FileReader();
               reader.onload = function () {
                 allText += reader.result + '\n';
@@ -333,6 +338,7 @@
                   dropZone.value = dropZone.value ? dropZone.value + '\n' + allText : allText;
                 }
               };
+              reader.onerror = function () { remaining--; };
               reader.readAsText(file);
             })(files[fi]);
           }
@@ -348,11 +354,13 @@
         for (var i = 0; i < items.length; i++) {
           if (items[i].type.indexOf('image/') === 0) {
             var file = items[i].getAsFile();
+            if (!file || file.size > 10 * 1024 * 1024) continue; // P0-6: 10MB上限
             var reader = new FileReader();
             reader.onload = function () {
               var input = document.getElementById('message-input');
               if (input) input.value += '\n![图片](' + reader.result + ')\n';
             };
+            reader.onerror = function () {};
             reader.readAsDataURL(file);
           }
         }

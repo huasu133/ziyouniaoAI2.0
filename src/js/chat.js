@@ -652,7 +652,7 @@
       // 链接 [text](url) — 仅允许 http/https/mailto/data 协议
       html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (match, text, url) {
         // P2: 允许锚点和相对路径
-        var safeUrl = /^(https?:|mailto:|data:|#|\/)/i.test(url) ? url : '#blocked';
+        var safeUrl = /^(https?:|mailto:|data:|#|\/)/i.test(url) ? Utils.escapeHTML(url) : '#blocked';
         return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
       });
 

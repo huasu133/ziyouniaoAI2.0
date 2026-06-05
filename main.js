@@ -437,6 +437,15 @@ ipcMain.handle('http-get', async (_event, url) => {
 
 // P0-3: fetch-url IPC handler — 代理任意URL HTTP请求（用于fetchURL），带超时和大小限制
 ipcMain.handle('fetch-url', async (_event, url) => {
+  // P0-3: SSRF 防护 — 只允许已知域名
+  try {
+    var parsed = new URL(url);
+    var allowed = ['api.deepseek.com', 'www.claw-search.com', 'api.tavily.com', 'google.serper.dev'];
+    if (allowed.indexOf(parsed.hostname) === -1) {
+      return { status: 0, data: null, error: 'URL not allowed: ' + parsed.hostname };
+    }
+  } catch (_) { return { status: 0, data: null, error: 'Invalid URL' }; }
+
   return new Promise((resolve) => {
     var protocol = url.startsWith('https:') ? 'https:' : 'http:';
     var lib = protocol === 'https:' ? require('https') : http;
