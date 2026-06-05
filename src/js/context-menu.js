@@ -359,6 +359,24 @@
             self._deleteSidebarItem(tabId);
           },
         },
+        { divider: true },
+        {
+          label: '打开文件夹',
+          icon: '📂',
+          action: function () {
+            if (window.electronAPI && window.electronAPI.openDataFolder) {
+              window.electronAPI.openDataFolder().then(function (res) {
+                if (!res.success) {
+                  var App = window.ZYN3 && window.ZYN3.App;
+                  if (App && App.showToast) App.showToast('打开文件夹失败: ' + (res.error || '未知错误'), 'error');
+                }
+              });
+            } else {
+              var App = window.ZYN3 && window.ZYN3.App;
+              if (App && App.showToast) App.showToast('仅桌面版支持打开文件夹', 'info');
+            }
+          },
+        },
       ]);
     },
 

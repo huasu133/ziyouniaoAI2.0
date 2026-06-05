@@ -49,7 +49,10 @@
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-header">
         <span class="sidebar-title">会话历史 <span id="conv-count" style="font-size:11px;color:var(--t3);">(0)</span></span>
-        <button id="btn-clear-conversations" class="sidebar-action-btn" title="清空所有会话">清空</button>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <button id="btn-open-data-folder" class="sidebar-action-btn" title="打开数据文件夹" style="font-size:12px;">📂</button>
+          <button id="btn-clear-conversations" class="sidebar-action-btn" title="清空所有会话">清空</button>
+        </div>
       </div>
       <div class="sb-search">
         <input id="sidebarSearch" type="text" placeholder="🔍 搜索历史对话...">

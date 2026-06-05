@@ -49,6 +49,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   /**
+   * 打开数据目录（在文件管理器中显示）
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
+
+  /**
    * 通知主进程保存完成
    */
   saveAllComplete: () => {

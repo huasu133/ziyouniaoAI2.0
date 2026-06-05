@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage, globalShortcut, shell } = require('electron');
 const path = require('path');
 const os = require('os');
 const { spawn, execFile } = require('child_process');
@@ -482,6 +482,18 @@ ipcMain.handle('fetch-url', async (_event, url) => {
       resolve({ status: 0, data: null, error: 'Request timeout' });
     });
   });
+});
+
+// P2: 打开数据目录（用于"打开文件夹"功能）
+ipcMain.handle('open-data-folder', async () => {
+  const dataPath = app.getPath('userData');
+  try {
+    await shell.openPath(dataPath);
+    return { success: true };
+  } catch (err) {
+    console.error('[main] Failed to open data folder:', err.message);
+    return { success: false, error: err.message };
+  }
 });
 
 // ─── 应用生命周期 ────────────────────────────────────────────────────────

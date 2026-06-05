@@ -225,6 +225,24 @@
         });
       }
 
+      // ─── 打开数据文件夹 ────────────────────────────
+      var openFolderBtn = document.getElementById('btn-open-data-folder');
+      if (openFolderBtn) {
+        openFolderBtn.addEventListener('click', function () {
+          if (window.electronAPI && window.electronAPI.openDataFolder) {
+            window.electronAPI.openDataFolder().then(function (res) {
+              if (!res.success) {
+                self.showToast('打开文件夹失败: ' + (res.error || '未知错误'), 'error');
+              } else {
+                self.showToast('已打开数据文件夹', 'success');
+              }
+            });
+          } else {
+            self.showToast('仅桌面版支持打开文件夹', 'info');
+          }
+        });
+      }
+
       // ─── 快捷键 ────────────────────────────────────
       document.addEventListener('keydown', function (e) {
         // Cmd/Ctrl + K: 侧栏（不在输入框中触发）
