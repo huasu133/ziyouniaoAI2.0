@@ -439,7 +439,7 @@ app.whenReady().then(async () => {
     tray.on('click', function () { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
   } catch (_) { console.log('[main] Tray not available'); }
 
-  // ─── Git 快照（启动后 10s + 每小时）─ 仅本地 commit，不 push
+  // ─── Git 快照（启动后 10s + 每小时）─ commit + push(如有remote)
   function gitSnapshot() {
     var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     var dir = path.join(__dirname);
@@ -449,7 +449,9 @@ app.whenReady().then(async () => {
       execFile('git', ['-C', dir, 'diff', '--cached', '--quiet'], { timeout: 10000 }, function (err2) {
         if (!err2) { /* 无变更，跳过 */ return; }
         execFile('git', ['-C', dir, 'commit', '-m', 'snapshot: ' + ts], { timeout: 30000 }, function (err3) {
-          if (err3) console.error('[快照] 失败:', err3.message);
+          if (err3) { console.error('[快照] commit 失败:', err3.message); return; }
+          // 如有 remote 则 push，否则仅本地 commit
+          execFile('git', ['-C', dir, 'push'], { timeout: 30000 }, function () { /* 静默 */ });
         });
       });
     });
