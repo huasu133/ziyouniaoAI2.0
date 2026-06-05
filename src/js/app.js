@@ -385,6 +385,7 @@
       toast.innerHTML = '' +
         '<span class="toast-icon">' + iconSvg + '</span>' +
         '<span class="toast-text">' + Utils.escapeHTML(message) + '</span>' +
+        (type === 'error' ? '<button class="toast-retry">重试</button>' : '') +
         '<button class="toast-close">✕</button>';
 
       container.appendChild(toast);
@@ -393,6 +394,14 @@
       if (closeBtn) {
         closeBtn.addEventListener('click', function () {
           self._removeToast(toast);
+        });
+      }
+
+      var retryBtn = toast.querySelector('.toast-retry');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', function () {
+          self._removeToast(toast);
+          Chat.sendMessage();
         });
       }
 

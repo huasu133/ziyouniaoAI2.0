@@ -492,3 +492,18 @@
   display: block;
   margin-top: 2px;
 }
+
+/* ─── Toast 重试按钮 ───────────────────────────────── */
+.toast-retry {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 3px;
+  color: var(--t1);
+  font-size: 12px;
+  padding: 2px 8px;
+  cursor: pointer;
+  margin-left: 8px;
+}
+.toast-retry:hover {
+  background: rgba(255,255,255,0.2);
+}
