@@ -242,25 +242,6 @@
         });
       });
 
-      // ─── 免费搜索 ──────────────────────────────────
-      var searchBtn = document.getElementById('btn-web-search');
-      if (searchBtn) {
-        searchBtn.addEventListener('click', function () {
-          var q = prompt('搜索什么？');
-          if (!q) return;
-          var Search = window.ZYN3.Search;
-          if (!Search) return;
-          Search.searchWeb(q).then(function (r) {
-            var resultsHtml = r.results ? r.results.slice(0, 5).map(function (item) {
-              return '- [' + (item.title || '无标题') + '](' + (item.url || '#') + ') ' + (item.snippet || '');
-            }).join('\n') : (r.error || '无结果');
-            Chat.addMessage('assistant', '**搜索: ' + q + '**\n' + resultsHtml);
-          }).catch(function (err) {
-            App.showToast('搜索失败: ' + (err.message || err), 'error');
-          });
-        });
-      }
-
       // ─── 导出当前对话 ──────────────────────────────
       var exportBtn = document.getElementById('btn-export-md');
       if (exportBtn) {
