@@ -84,13 +84,10 @@
       if (maxTokens) maxTokens.value = settings.maxTokens || 4096;
 
       var modelSelect = document.getElementById('model-select');
-      if (modelSelect) modelSelect.value = settings.model || 'deepseek-v4-flash';
+      if (modelSelect) modelSelect.value = settings.model || 'deepseek-chat';
 
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) styleSelect.value = settings.style || '';
-
-      var deepseekKeyEl = document.getElementById('setting-deepseek-key');
-      if (deepseekKeyEl) deepseekKeyEl.value = settings.deepseekKey || '';
 
       // 加载搜索 API Key（通过 Storage 接口，避免双重命名空间）
       var searchKeys = Storage.getSearchKeys();
@@ -132,9 +129,6 @@
 
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) settings.style = styleSelect.value;
-
-      var deepseekKeyEl = document.getElementById('setting-deepseek-key');
-      if (deepseekKeyEl) settings.deepseekKey = deepseekKeyEl.value.trim();
 
       // 保存搜索 API Key（通过 Storage 接口，避免双重命名空间）
       var tavilyKeyEl = document.getElementById('setting-tavily-key');
@@ -182,7 +176,7 @@
       var debouncedSave = Utils.debounce(function () { self._saveSettings(); }, 150);
 
       // 设置变更自动保存
-      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select', 'style-select', 'setting-tavily-key', 'setting-serper-key', 'setting-deepseek-key'];
+      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select', 'style-select', 'setting-tavily-key', 'setting-serper-key'];
 
       changeHandlers.forEach(function (id) {
         var el = document.getElementById(id);
@@ -270,6 +264,12 @@
           Utils.readFileAsText(file).then(function (text) {
             try {
               var data = JSON.parse(text);
+              // 导入前确认
+              var tabCount = data.tabs ? data.tabs.length : 0;
+              if (!confirm('即将导入 ' + tabCount + ' 个对话，覆盖当前设置。\n已有对话将被保留（ID冲突会自动重命名）。\n确定继续？')) {
+                cleanInput();
+                return;
+              }
               var success = Storage.importData(data);
               var App = window.ZYN3.App;
               if (success) {

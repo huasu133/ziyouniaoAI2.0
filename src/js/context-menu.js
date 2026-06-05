@@ -201,6 +201,8 @@
                 Chat.addMessage('assistant', '**搜索: ' + selectedText.substring(0, 50) + '**\n' + resultsHtml);
               }).catch(function (err) {
                 console.error('[ContextMenu] Search failed:', err);
+                var App = window.ZYN3 && window.ZYN3.App;
+                if (App && App.showToast) App.showToast('搜索失败: ' + (err.message || '网络错误'), 'error');
               });
             }
           },
@@ -364,7 +366,7 @@
      * 行内重命名侧栏会话
      */
     _renameSidebarItem: function (tabId, currentTitle) {
-      var convItem = document.querySelector('.conversation-item[data-tab-id="' + tabId + '"]');
+      var convItem = document.querySelector('.conversation-item[data-tab-id="' + Utils.escapeHTML(tabId) + '"]');
       if (!convItem) return;
       var titleEl = convItem.querySelector('.conversation-item-title');
       if (!titleEl) return;

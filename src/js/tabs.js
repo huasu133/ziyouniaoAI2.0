@@ -62,7 +62,7 @@
         createdAt: Date.now(),
         updatedAt: Date.now(),
         messageCount: 0,
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-chat',
       };
       this.tabs.push(tab);
       this.activeTabId = tab.id;
@@ -80,7 +80,7 @@
         createdAt: Date.now(),
         updatedAt: Date.now(),
         messageCount: 0,
-        model: 'deepseek-v4-flash',
+        model: 'deepseek-chat',
       };
       this.tabs.push(tab);
       this.activeTabId = tab.id;
@@ -131,9 +131,9 @@
       }
 
       // P0: 关闭标签前检查是否正在生成，若有则先中止
-      var Chat = window.ZYN3.Chat;
-      if (Chat && Chat.currentTabId === tabId && Chat.isGenerating) {
-        Chat.stopGeneration();
+      var ChatModule = window.ZYN3.Chat;
+      if (ChatModule && ChatModule.currentTabId === tabId && ChatModule.isGenerating) {
+        ChatModule.stopGeneration();
       }
 
       if (this.tabs.length <= 1) {

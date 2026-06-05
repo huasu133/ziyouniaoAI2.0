@@ -52,7 +52,7 @@ let _gitSnapshotTimer = null;
 // 中定义。实际策略:
 //   default-src 'self'; script-src 'self' 'unsafe-inline';
 //   style-src 'self' 'unsafe-inline';
-//   connect-src http://127.0.0.1:18789 https://api.deepseek.com https://www.claw-search.com https://api.tavily.com https://google.serper.dev;
+//   connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev;
 //   img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';
 // 说明: connect-src 包含搜索域名（Claw/Tavily/Serper），
 //       搜索功能需要这些外部连接；unsafe-inline 因架构约束保留。
@@ -444,7 +444,7 @@ ipcMain.handle('fetch-url', async (_event, url) => {
   // P0-3: SSRF 防护 — 只允许已知域名
   try {
     var parsed = new URL(url);
-    var allowed = ['api.deepseek.com', 'www.claw-search.com', 'api.tavily.com', 'google.serper.dev'];
+    var allowed = ['www.claw-search.com', 'api.tavily.com', 'google.serper.dev'];
     if (allowed.indexOf(parsed.hostname) === -1) {
       return { status: 0, data: null, error: 'URL not allowed: ' + parsed.hostname };
     }

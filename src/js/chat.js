@@ -240,6 +240,9 @@
             delete lastMsg._placeholder;
           }
 
+          // 清除流式防抖定时器
+          if (self._saveTimer) { clearTimeout(self._saveTimer); self._saveTimer = null; }
+
           // 保存消息
           self._saveCurrentMessages();
 
@@ -262,6 +265,9 @@
           if (genId !== _generationId) return;
           self.isGenerating = false;
           self._abortController = null;
+
+          // 清除流式防抖定时器
+          if (self._saveTimer) { clearTimeout(self._saveTimer); self._saveTimer = null; }
 
           // 移除占位消息
           var lastMsg = self.messages[self.messages.length - 1];
@@ -287,6 +293,8 @@
     stopGeneration: function () {
       // P0-4: 递增 generationId 使所有 pending 回调失效
       _generationId++;
+      // 清除流式防抖定时器
+      if (this._saveTimer) { clearTimeout(this._saveTimer); this._saveTimer = null; }
       if (this._abortController) {
         this._abortController.abort();
         this._abortController = null;
@@ -396,12 +404,17 @@
         }
       }
 
-      this._saveCurrentMessages();
-
-      // P0-Bug #2: 流式更新后通知标签管理器
-      var _Tabs = window.ZYN3.Tabs;
-      if (_Tabs && _Tabs.onMessageAdded && this.currentTabId) {
-        _Tabs.onMessageAdded(this.currentTabId);
+      // 防抖保存 — 流式输出时每 500ms 写一次 localStorage，避免每 token 写入
+      if (!this._saveTimer) {
+        this._saveTimer = setTimeout(function (self) {
+          self._saveCurrentMessages();
+          // P0-Bug #2: 流式更新后通知标签管理器
+          var _Tabs = window.ZYN3.Tabs;
+          if (_Tabs && _Tabs.onMessageAdded && self.currentTabId) {
+            _Tabs.onMessageAdded(self.currentTabId);
+          }
+          self._saveTimer = null;
+        }, 500, this);
       }
 
       // 流式输出时自动滚动
@@ -426,11 +439,6 @@
       var self = this;
       var MAX_RENDER = 200;
       var msgs = this.messages;
-
-      // P0: 检查 _renderAll 标志，点击"显示全部"后全量渲染
-      if (this._renderAll) {
-        MAX_RENDER = Infinity;
-      }
 
       // 长对话性能优化：限制初始渲染数量
       if (msgs.length > MAX_RENDER) {
@@ -661,12 +669,11 @@
         return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
       });
 
-      // P2: 先斜体再粗体，避免 `**text**` 中的 `*` 被斜体误匹配
+      // 加粗 **text**（先处理粗体，避免 `**text**` 中的 `**` 被斜体先匹配）
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
       // 斜体 *text*
       html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-      // 加粗 **text**
-      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
       // 换行 → <br>（跳过 <pre> 内部）
       var parts = html.split(/(<pre[\s\S]*?<\/pre>)/g);
@@ -757,14 +764,12 @@
         '## 总结\n3-5句话概述\n' +
         '## 分析\n列出关键决策和变化\n' +
         '## 推荐\n2-3条下一步行动';
-      var modelSelect = document.querySelector('#model-select');
-      var model = modelSelect ? modelSelect.value : 'deepseek-v4-flash';
       var self = this;
-      var apiKey = Storage.getSettings().deepseekKey || '';
-      fetch('https://api.deepseek.com/v1/chat/completions', {
+      var API = window.ZYN3.API;
+      fetch((API.BASE_URL || 'http://127.0.0.1:18789') + '/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
-        body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, stream: false }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (API.AUTH_TOKEN || 'ziyouniao-local-token-2026') },
+        body: JSON.stringify({ model: 'openclaw', messages: [{ role: 'user', content: prompt }], max_tokens: 500, stream: false }),
         signal: AbortSignal.timeout(30000),
       })
         .then(function (res) { return res.json(); })
@@ -801,7 +806,7 @@
             Storage.set('summaries', (Storage.get('summaries') || '') + log);
           }
         })
-        .catch(function () { /* 静默失败 */ });
+        .catch(function (err) { console.warn('[Chat] Summary failed:', err && err.message); });
     },
 
     /**

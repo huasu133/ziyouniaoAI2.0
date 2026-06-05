@@ -71,6 +71,18 @@
           ? 'var(--green)'
           : 'var(--t3)';
       }
+
+      // 顶栏状态指示器
+      const indicator = document.getElementById('statusIndicator');
+      if (indicator) {
+        if (Gateway.status === 'online') {
+          indicator.innerHTML = '🟢';
+          indicator.title = '已连接 OpenClaw';
+        } else {
+          indicator.innerHTML = '🔴';
+          indicator.title = 'OpenClaw 未连接';
+        }
+      }
     },
 
     /**

@@ -38,26 +38,8 @@
       // 5. 初始化右键菜单
       ContextMenu.init();
 
-      // 6. 网关状态检查
+      // 6. 网关状态检查（含状态指示器更新）
       Gateway.startPolling(30000);
-
-      // 6b. 状态指示器 — 手册 §5.8
-      async function checkConnection() {
-        var indicator = document.getElementById('statusIndicator');
-        if (!indicator) return;
-        try {
-          var res = await fetch('http://127.0.0.1:18789/health', { signal: AbortSignal.timeout(3000) });
-          if (res.ok) {
-            indicator.innerHTML = '🟢';
-            indicator.title = '已连接 OpenClaw';
-          } else throw new Error();
-        } catch (_) {
-          indicator.innerHTML = '🔴';
-          indicator.title = 'OpenClaw 未连接';
-        }
-      }
-      checkConnection();
-      setInterval(checkConnection, 30000);
 
       // 7. 绑定全局 UI 事件
       this._bindEvents();
@@ -232,18 +214,6 @@
         exportBtn.addEventListener('click', function () {
           Chat.exportMarkdown();
           App.showToast('对话已导出', 'success');
-        });
-      }
-
-      // ─── 网关状态按钮 ──────────────────────────────
-      var gatewayBtn = document.getElementById('btn-gateway-status');
-      if (gatewayBtn) {
-        gatewayBtn.addEventListener('click', function () {
-          Gateway.checkHealth().then(function () {
-            Gateway.updateUI();
-            var status = Gateway.getStatusText();
-            self.showToast('网关状态: ' + status, Gateway.status === 'online' ? 'success' : 'error');
-          });
         });
       }
 

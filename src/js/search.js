@@ -139,6 +139,15 @@
         if (cacheKeys.length > MAX_CACHE) { delete SEARCH_CACHE[cacheKeys.shift()]; }
         return { results: tav, source: 'tavily' };
       }
+
+      // Tavily 也无结果：降级 Serper
+      var serper = await this._serperSearch(query);
+      if (serper.length > 0) {
+        SEARCH_CACHE[query] = { results: serper, time: Date.now() };
+        cacheKeys.push(query);
+        if (cacheKeys.length > MAX_CACHE) { delete SEARCH_CACHE[cacheKeys.shift()]; }
+        return { results: serper, source: 'serper' };
+      }
       return { error: '搜索无结果' };
     },
 

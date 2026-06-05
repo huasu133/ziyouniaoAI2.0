@@ -9,38 +9,41 @@
 ## 架构
 
 ```
-┌──────────────────────────────────────┐
-│  Electron 壳                          │
-│  ┌────────────────────────────────┐  │
-│  │ 自定义四栏UI (loadFile)        │  │
-│  │ fetch → localhost:18789/v1     │  │
-│  └───────────────┬────────────────┘  │
-│                  │                    │
-│  main.js: spawn('openclaw', ...)     │
-└──────────────────┼────────────────────┘
-                   │ HTTP
-┌──────────────────┴────────────────────┐
-│  OpenClaw CLI (独立安装)              │
-│  127.0.0.1:18789                     │
-│  ├─ SOUL.md (人格)                   │
-│  └─ /v1/chat/completions (SSE流式)  │
-└──────────────────┬────────────────────┘
-                   │ API Key (用户自己的)
-┌──────────────────┴────────────────────┐
-│  DeepSeek API                        │
-└──────────────────────────────────────┘
+┌───────────────────────────────────────────┐
+│  Electron 壳                               │
+│  ┌─────────────────────────────────────┐  │
+│  │ 自定义四栏UI (loadFile)             │  │
+│  │ fetch → localhost:18789/v1          │  │
+│  │ (AUTH_TOKEN 认证)                   │  │
+│  └───────────────┬─────────────────────┘  │
+│                  │                         │
+│  main.js: spawn('openclaw', ...)          │
+└──────────────────┼─────────────────────────┘
+                   │ HTTP (127.0.0.1:18789)
+┌──────────────────┴─────────────────────────┐
+│  OpenClaw Gateway                          │
+│  auth: token "ziyouniao-local-token-2026"  │
+│  http.endpoints.chatCompletions: enabled   │
+│  ┌──────────────────────────────────────┐  │
+│  │ models.providers.openai → deepseek   │  │
+│  │ apiKey via DEEPSEEK_API_KEY env var  │  │
+│  │ model: deepseek-chat                 │  │
+│  └──────────────────────────────────────┘  │
+└──────────────────┬─────────────────────────┘
+                   │ API Key (OpenClaw 统一管理)
+┌──────────────────┴─────────────────────────┐
+│  DeepSeek API                              │
+└────────────────────────────────────────────┘
 ```
 
-### 3.0 vs 2.0 的关键修正
+### 3.0 关键演进
 
-| 方面 | 2.0 (错误) | 3.0 (修正) |
-|------|-----------|-----------|
-| 窗口加载 | `loadURL('http://localhost:18789')` → 加载OpenClaw原生UI | `loadFile('src/index.html')` → 加载自定义四栏UI |
-| Gateway启动 | 不等待，窗口可能白屏 | 轮询/health每500ms，最多10秒超时 |
-| 停止按钮 | abortController未连fetch | signal完整链路 |
-| 多标签持久化 | 仅内存，崩溃全丢 | localStorage独立存储 |
-| macOS兼容 | 仅Windows打包配置 | macOS PATH多路径fallback + .dmg + .icns |
-| 设置面板 | 含API Key误导字段 | 移除API Key，引导用openclaw onboard |
+| 方面 | 2.0/早期 | 3.0 (当前) |
+|------|---------|-----------|
+| 窗口加载 | `loadURL` → 加载OpenClaw原生UI | `loadFile('src/index.html')` → 自定义四栏UI |
+| API 调用 | 直连 DeepSeek (前端配 Key) | 经 OpenClaw 网关代理 (统一管 Key) |
+| 认证 | 用户 Key 硬编码在前端 | AUTH_TOKEN 认证 + 环境变量 |
+| 设置面板 | 含 API Key 输入框 | 无 Key 字段，Key 由 OpenClaw 管理 |
 
 ---
 
@@ -165,13 +168,13 @@ npm start
 
 | 功能 | 描述 |
 |------|------|
-| API自动重试 | 连接阶段重试2次（1s/2s） |
+| API自动重试 | 连接阶段重试2次（1s/2s），5xx + 网络错误可重试 |
 | 4种风格预设 | 默认/高效/创意/专业/友好 |
 | 托盘图标 | macOS菜单栏Tray |
 | Git快照 | 启动后每小时commit |
-| 免费搜索 | DuckDuckGo HTML解析 |
+| 免费搜索 | Claw主搜索 + Tavily/Serper补充（Key可选） |
 | 消息删除 | 右键删除单条消息 |
-| 对话导入/导出 | JSON格式完整备份 |
+| 对话导入/导出 | JSON格式完整备份（导入前确认）
 
 ---
 
@@ -184,7 +187,7 @@ npm start
 | `zyn3:tabs` | Array | 标签页元数据 [{id, title, createdAt, updatedAt}] |
 | `zyn3:tab:{id}` | Array | 单个标签的消息历史 [{role, content, timestamp}] |
 | `zyn3:activeTab` | String | 当前活跃标签ID |
-| `zyn3:settings` | Object | {theme, fontSize, sendOnEnter, defaultModel, style} |
+| `zyn3:settings` | Object | {theme, fontSize, model, style, temperature, maxTokens} |
 | `zyn3:inputHistory` | Array | 输入历史（最近50条） |
 | `zyn3:lessons` | Array | 经验教训（最近100条） |
 | `zyn3:memories` | Array | AI记忆键值对 |
@@ -242,7 +245,7 @@ npm start
 | 请求格式 | `{model, messages: [{role, content}], stream: true}` |
 | 响应格式 | SSE: `data: {JSON}\n\n` |
 | 终止标记 | `data: [DONE]` |
-| 默认模型 | `deepseek-chat` |
+| 默认模型 | `openclaw`（网关内部路由到 deepseek-chat） |
 
 ---
 

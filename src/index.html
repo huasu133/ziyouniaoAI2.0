@@ -7,7 +7,7 @@
   <!-- connect-src 包含搜索域名（Claw/Tavily/Serper），搜索功能需要这些外部连接 -->
   <!-- 所有外部域名访问通过IPC代理，connect-src仅允许本地网关 -->
   <!-- img-src data: 用于图片粘贴 base64 场景 -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev https://api.deepseek.com; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta name="referrer" content="no-referrer">
   <title>自由鸟AI</title>
@@ -67,8 +67,7 @@
           <h2>自由鸟AI 3.0</h2>
           <p class="welcome-hint">选择模型后开始对话</p>
           <div class="welcome-models">
-            <button class="model-btn" data-model="deepseek-v4-flash">DeepSeek V4 Flash</button>
-            <button class="model-btn" data-model="deepseek-v4-pro">DeepSeek V4 Pro</button>
+            <button class="model-btn" data-model="deepseek-chat">开始对话</button>
           </div>
         </div>
       </div>
@@ -77,8 +76,7 @@
       <div class="input-area" id="input-area">
         <div class="model-selector">
           <select id="model-select" class="model-select">
-            <option value="deepseek-v4-flash">DeepSeek V4 Flash</option>
-            <option value="deepseek-v4-pro">DeepSeek V4 Pro</option>
+            <option value="deepseek-chat">DeepSeek Chat（经网关）</option>
           </select>
           <select id="style-select" class="model-select">
             <option value="">默认风格</option>
@@ -153,11 +151,6 @@
         <div class="settings-section">
           <h3 class="settings-section-title">API 配置</h3>
           <div class="settings-item">
-            <label class="settings-label">DeepSeek API Key</label>
-            <input type="password" id="setting-deepseek-key" class="settings-input" placeholder="sk-..." autocomplete="off">
-            <span class="settings-hint">直连 DeepSeek（OpenClaw 网关仅用于健康检查）</span>
-          </div>
-          <div class="settings-item">
             <span class="settings-label">网关地址</span>
             <span class="settings-value-static">http://127.0.0.1:18789</span>
           </div>
@@ -167,7 +160,7 @@
           </div>
           <div class="settings-note">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span>直连 DeepSeek API，Key 仅保存在本地。</span>
+            <span>所有请求通过本地 OpenClaw Gateway 转发。</span>
           </div>
         </div>
 
