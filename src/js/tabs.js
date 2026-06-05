@@ -27,6 +27,15 @@
       this.tabs = Storage.getTabs();
       this.activeTabId = Storage.getActiveTab();
 
+      // P1: 验证每个 tab 字段完整性
+      var validTabs = [];
+      for (var ti = 0; ti < this.tabs.length; ti++) {
+        var t = this.tabs[ti];
+        if (!t.id || !t.title) continue;
+        validTabs.push(t);
+      }
+      this.tabs = validTabs;
+
       // 如果没有标签，创建默认标签
       if (!this.tabs || this.tabs.length === 0) {
         this._createDefaultTab();
@@ -94,9 +103,10 @@
     switchTab: function (tabId) {
       if (tabId === this.activeTabId) return;
       if (this.isGenerating()) {
-        // P1: 提示用户
-        var App = window.ZYN3.App;
-        if (App && App.showToast) {
+        // P2: App 变量 undefined 兜底
+        var App = window.ZYN3 && window.ZYN3.App;
+        if (!App) { console.warn('[Tabs] App not available'); return; }
+        if (App.showToast) {
           App.showToast('请先停止当前生成再切换标签', 'info');
         }
         return;
@@ -279,7 +289,11 @@
      * 保存标签列表
      */
     _saveTabs: function () {
-      Storage.setTabs(this.tabs);
+      // P1: 检查 localStorage 是否满
+      if (!Storage.setTabs(this.tabs)) {
+        var App = window.ZYN3 && window.ZYN3.App;
+        if (App && App.showToast) App.showToast('存储空间不足，请清理一些旧对话', 'error');
+      }
     },
 
     /**
@@ -290,7 +304,8 @@
       var tab = this._findTab(tabId);
       if (tab) {
         tab.updatedAt = Date.now();
-        tab.messageCount = (Storage.getTabMessages(tabId) || []).length;
+        // P2: 使用内存中的 Chat.messages.length，避免高频读取 Storage
+        tab.messageCount = Chat.messages.length;
         this._saveTabs();
         // 防抖渲染 — 流式输出时避免每秒渲染100次标签栏
         if (!this._renderTimer) {

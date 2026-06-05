@@ -87,6 +87,20 @@
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) styleSelect.value = settings.style || '';
 
+      // P0: 加载搜索 API Key
+      var searchKeys = Storage.get('zyn3:search-keys') || {};
+      var tavilyKey = document.getElementById('setting-tavily-key');
+      var serperKey = document.getElementById('setting-serper-key');
+      if (tavilyKey) tavilyKey.value = searchKeys.tavily || '';
+      if (serperKey) serperKey.value = searchKeys.serper || '';
+
+      // P0-1: 加载搜索 API Key
+      var searchKeys = Storage.getSearchKeys();
+      var tavilyKeyEl = document.getElementById('setting-tavily-key');
+      var serperKeyEl = document.getElementById('setting-serper-key');
+      if (tavilyKeyEl) tavilyKeyEl.value = searchKeys.tavily || '';
+      if (serperKeyEl) serperKeyEl.value = searchKeys.serper || '';
+
       // P1: 加载后立即应用主题/字体设置
       this._applySettings(settings);
     },
@@ -121,7 +135,24 @@
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) settings.style = styleSelect.value;
 
+      // P0: 保存搜索 API Key
+      var searchKeys = Storage.get('zyn3:search-keys') || {};
+      var tavilyKey = document.getElementById('setting-tavily-key');
+      var serperKey = document.getElementById('setting-serper-key');
+      if (tavilyKey) searchKeys.tavily = tavilyKey.value.trim();
+      if (serperKey) searchKeys.serper = serperKey.value.trim();
+      Storage.set('zyn3:search-keys', searchKeys);
+
       Storage.setSettings(settings);
+
+      // P0-1: 单独保存搜索 API Key 到 zyn3:search-keys
+      var tavilyKeyEl = document.getElementById('setting-tavily-key');
+      var serperKeyEl = document.getElementById('setting-serper-key');
+      Storage.setSearchKeys({
+        tavily: tavilyKeyEl ? tavilyKeyEl.value.trim() : '',
+        serper: serperKeyEl ? serperKeyEl.value.trim() : '',
+      });
+
       this._applySettings(settings);
     },
 
@@ -156,7 +187,7 @@
       var debouncedSave = Utils.debounce(function () { self._saveSettings(); }, 150);
 
       // 设置变更自动保存
-      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select', 'style-select'];
+      var changeHandlers = ['setting-theme', 'setting-font-size', 'setting-temperature', 'setting-max-tokens', 'model-select', 'style-select', 'setting-tavily-key', 'setting-serper-key'];
 
       changeHandlers.forEach(function (id) {
         var el = document.getElementById(id);
@@ -238,6 +269,9 @@
                 var Sidebar = window.ZYN3.Sidebar;
                 if (Tabs) Tabs.init();
                 if (Sidebar) Sidebar.render();
+                // P1: 导入后恢复当前标签的 UI 渲染
+                var Chat = window.ZYN3.Chat;
+                if (Chat && Chat.renderMessages) Chat.renderMessages();
                 // 刷新设置面板 UI
                 self._loadSettings();
               } else {

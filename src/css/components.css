@@ -374,6 +374,23 @@
   border-color: var(--accent);
 }
 
+.settings-input {
+  width: 100%;
+  background: var(--bg3);
+  color: var(--t1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  outline: none;
+}
+.settings-input:focus {
+  border-color: var(--accent);
+}
+.settings-input::placeholder {
+  color: var(--t3);
+}
+
 .settings-btn {
   width: 100%;
   padding: 8px 12px;
@@ -437,14 +454,14 @@
   border-radius: 3px;
 }
 .error-banner-close:hover {
-  background: rgba(255,255,255,0.1);
+  background: var(--hover-overlay);
 }
 
 /* ─── 文件拖放 ──────────────────────────────────────── */
 .drag-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(108, 77, 255, 0.08);
+  background: var(--accent-bg);
   border: 2px dashed var(--accent);
   z-index: 9999;
   display: flex;
@@ -495,7 +512,7 @@
 
 /* ─── Toast 重试按钮 ───────────────────────────────── */
 .toast-retry {
-  background: rgba(255,255,255,0.1);
+  background: var(--hover-overlay);
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 3px;
   color: var(--t1);
@@ -506,4 +523,29 @@
 }
 .toast-retry:hover {
   background: rgba(255,255,255,0.2);
+}
+
+/* ─── 记忆面板删除按钮 ────────────────────────────── */
+.mem-del {
+  background: none;
+  border: none;
+  color: var(--t3);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 3px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.mem-del:hover {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+/* ─── 右键菜单图标 ────────────────────────────────── */
+.context-menu-icon {
+  font-size: 14px;
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
 }

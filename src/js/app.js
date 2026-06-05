@@ -127,6 +127,8 @@
           // 输入历史 ↑↓
           if (e.key === 'ArrowUp' && !e.shiftKey && !input.value) {
             e.preventDefault();
+            // P2: 空数组显式 guard
+            if (!Chat.inputHistory || !Chat.inputHistory.length) return;
             Chat.historyIndex = Math.min(Chat.historyIndex + 1, Chat.inputHistory.length - 1);
             input.value = Chat.inputHistory[Chat.historyIndex] || '';
           } else if (e.key === 'ArrowDown' && !e.shiftKey && !input.value) {
@@ -190,8 +192,6 @@
         searchBtn.addEventListener('click', function () {
           var q = prompt('搜索什么？');
           if (!q) return;
-          var searchEl = document.querySelector('.search-results');
-          if (searchEl) searchEl.remove();
           var Search = window.ZYN3.Search;
           if (!Search) return;
           Search.searchWeb(q).then(function (r) {
@@ -401,7 +401,8 @@
       if (retryBtn) {
         retryBtn.addEventListener('click', function () {
           self._removeToast(toast);
-          Chat.sendMessage();
+          // P1: 使用 retryLastMessage 而非 sendMessage，避免输入框已清空问题
+          Chat.retryLastMessage();
         });
       }
 

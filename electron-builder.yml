@@ -10,7 +10,7 @@ directories:
 files:
   - main.js
   - preload.js
-  - src/**/*   # 含 HTML/CSS/JS 全部前端资源，范围保持现状
+  - src/**/*   # 含 HTML/CSS/JS 全部前端资源，注意及时清理临时文件（*.bak *.tmp *.orig）
   - assets/**/*.png
   - assets/**/*.icns
 
@@ -34,10 +34,6 @@ dmg:
   title: "${productName} ${version}"
   background: null
   contents:
-    - x: 130
-      y: 220
-      type: file
-      path: /Applications
     - x: 410
       y: 220
       type: link

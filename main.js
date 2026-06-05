@@ -28,6 +28,7 @@ const API_BASE = 'http://127.0.0.1:18789'; // 本地网关，无需HTTPS
 const GATEWAY_HEALTH_URL = API_BASE + '/health';
 const GATEWAY_MAX_WAIT_MS = 10000;
 const GATEWAY_POLL_MS = 500;
+const QUIT_TIMEOUT_MS = 5000; // P1-5: 退出超时常量，避免硬编码
 
 // ─── 状态 ────────────────────────────────────────────────────────────────
 let mainWindow = null;
@@ -47,11 +48,14 @@ let _gitSnapshotTimer = null;
 
 // ─── CSP 策略说明 ────────────────────────────────────────────────────────
 // CSP 策略在 src/index.html 的 <meta http-equiv="Content-Security-Policy">
-// 中定义。当前策略:
+// 中定义。实际策略:
 //   default-src 'self'; script-src 'self' 'unsafe-inline';
-//   style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:18789
-// 限制内容: 仅允许加载本地的脚本和样式，网络请求仅允许到本地网关。
-// 若需放宽（如加载外部资源），请修改 index.html 中的 meta 标签。
+//   style-src 'self' 'unsafe-inline';
+//   connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev;
+//   img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';
+// 说明: connect-src 包含搜索域名（Claw/Tavily/Serper），
+//       搜索功能需要这些外部连接；unsafe-inline 因架构约束保留。
+// 若需进一步放宽，请修改 index.html 中的 meta 标签。
 
 // ─── 辅函数 ──────────────────────────────────────────────────────────────
 
@@ -113,6 +117,8 @@ function waitForGateway() {
     function poll() {
       if (_polling) return;
       _polling = true;
+      // P1-4: 独立超时，防止TCP连接hang导致_polling永久true
+      setTimeout(function() { _polling = false; }, 5000);
       const req = http.get(GATEWAY_HEALTH_URL, (res) => {
         let data = '';
         res.on('data', (chunk) => { data += chunk.toString('utf8'); });
@@ -244,6 +250,25 @@ function killGateway() {
 // ─── 统一退出逻辑 ────────────────────────────────────────────────────────
 
 /**
+ * 快速检查网关健康状态（用于热启动检测）
+ * @returns {Promise<boolean>}
+ */
+function healthCheck() {
+  return new Promise((resolve) => {
+    var req = http.get(GATEWAY_HEALTH_URL, function (res) {
+      resolve(res.statusCode === 200);
+    });
+    req.on('error', function () {
+      resolve(false);
+    });
+    req.setTimeout(2000, function () {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
+/**
  * 统一退出: 先杀网关，再退应用
  * save-all-complete IPC 和 before-quit timeout 都走这个入口，避免竞态
  */
@@ -280,7 +305,6 @@ function createWindow() {
     .catch(function (err) {
       console.error('[main] Failed to load index.html:', err.message);
       dialog.showErrorBox('加载失败', 'UI文件损坏或缺失');
-      try { mainWindow.show(); } catch (_) {}
     });
 
   mainWindow.once('ready-to-show', () => {
@@ -360,6 +384,9 @@ ipcMain.handle('get-lessons', () => {
 });
 
 ipcMain.handle('save-lessons', (_event, lessons) => {
+  // P1-3: 类型与大小校验
+  if (!Array.isArray(lessons)) return false;
+  if (JSON.stringify(lessons).length > 500_000) return false;
   const lessonsPath = path.join(app.getPath('userData'), 'zyn3-lessons.json');
   try {
     fs.writeFileSync(lessonsPath, JSON.stringify(lessons, null, 2), 'utf8');
@@ -386,7 +413,14 @@ ipcMain.handle('http-get', async (_event, url) => {
   return new Promise((resolve) => {
     var req = http.get(url, (res) => {
       let data = '';
-      res.on('data', (chunk) => { data += chunk; });
+      res.on('data', (chunk) => {
+        data += chunk;
+        // P1-1: 1MB 响应体大小限制
+        if (data.length >= 1_000_000) {
+          req.destroy();
+          resolve({ status: 0, data: null, error: 'Response too large (>1MB)' });
+        }
+      });
       res.on('end', () => {
         resolve({ status: res.statusCode, data });
       });
@@ -401,15 +435,70 @@ ipcMain.handle('http-get', async (_event, url) => {
   });
 });
 
+// P0-3: fetch-url IPC handler — 代理任意URL HTTP请求（用于fetchURL），带超时和大小限制
+ipcMain.handle('fetch-url', async (_event, url) => {
+  return new Promise((resolve) => {
+    var protocol = url.startsWith('https:') ? 'https:' : 'http:';
+    var lib = protocol === 'https:' ? require('https') : http;
+    var req = lib.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Ziyouniao/3.0)' } }, function (res) {
+      let data = '';
+      res.on('data', function (chunk) {
+        data += chunk;
+        if (data.length >= 1_000_000) {
+          req.destroy();
+          resolve({ status: 0, data: null, error: 'Response too large (>1MB)' });
+        }
+      });
+      res.on('end', function () {
+        var title = '';
+        var match = data.match(/<title[^>]*>([^<]+)<\/title>/i);
+        if (match) title = match[1];
+        var cleaned = data.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        resolve({ status: res.statusCode, data: cleaned.slice(0, 5000), title: title });
+      });
+    });
+    req.on('error', function (err) {
+      resolve({ status: 0, data: null, error: err.message });
+    });
+    req.setTimeout(10000, function () {
+      req.destroy();
+      resolve({ status: 0, data: null, error: 'Request timeout' });
+    });
+  });
+});
+
 // ─── 应用生命周期 ────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
   createWindow();
 
-  const openclawPath = await findOpenClaw();
-  if (openclawPath) {
-    gatewayProcess = startGateway(openclawPath);
+  // P2-2: findOpenClaw 加 15s 总超时
+  const openclawPath = await Promise.race([
+    findOpenClaw(),
+    new Promise(function (resolve) {
+      setTimeout(function () { resolve(null); }, 15000);
+    }),
+  ]);
 
+  // P0-1: 热启动检测——如果已有网关运行，跳过 spawn 新进程
+  var gatewayAlreadyRunning = false;
+  if (openclawPath) {
+    var health = await healthCheck();
+    if (health) {
+      console.log('[main] Gateway already running (hot start), skipping spawn');
+      gatewayAlreadyRunning = true;
+    }
+  }
+
+  if (openclawPath && !gatewayAlreadyRunning) {
+    gatewayProcess = startGateway(openclawPath);
+  }
+
+  if (openclawPath) {
     const ready = await waitForGateway();
     if (ready) {
       console.log('[main] Gateway is ready');
@@ -424,10 +513,17 @@ app.whenReady().then(async () => {
   }
 
   // ─── 托盘 ──────────────────────────────────────────
-  // 使用DataURL创建16x16紫色图标，不依赖 assets/icon.png 文件
-  var trayIcon = nativeImage.createFromDataURL(
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGPI8f3/nxLMMGrAqAGjBgwXAwDZLrcfg17eUgAAAABJRU5ErkJggg=='
-  );
+  // P2-3: 优先从文件加载图标，文件不存在时回退到内嵌 DataURL
+  var iconPath = path.join(__dirname, 'assets', 'icon.png');
+  var trayIcon;
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath);
+    if (trayIcon.isEmpty()) throw new Error('Icon file is empty');
+  } catch (_) {
+    trayIcon = nativeImage.createFromDataURL(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAGUlEQVR4nGPI8f3/nxLMMGrAqAGjBgwXAwDZLrcfg17eUgAAAABJRU5ErkJggg=='
+    );
+  }
   try {
     tray = new Tray(trayIcon.resize({ width: 16, height: 16 }));
     tray.setToolTip('自由鸟AI');
@@ -461,16 +557,20 @@ app.whenReady().then(async () => {
   _gitSnapshotTimer = setInterval(gitSnapshot, 60 * 60 * 1000);
 
   // ─── 全局快捷键 Alt+Space ────────────────────────
-  globalShortcut.register('Alt+Space', function () {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
-        mainWindow.focus();
+  try {
+    globalShortcut.register('Alt+Space', function () {
+      if (mainWindow) {
+        if (mainWindow.isVisible()) {
+          mainWindow.hide();
+        } else {
+          mainWindow.show();
+          mainWindow.focus();
+        }
       }
-    }
-  });
+    });
+  } catch (err) {
+    console.error('[main] Failed to register global shortcut:', err.message);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -491,7 +591,7 @@ app.on('before-quit', (event) => {
     _quitTimer = setTimeout(() => {
       console.log('[main] Save timeout, proceeding with shutdown');
       doFinalQuit();
-    }, 3000);
+    }, QUIT_TIMEOUT_MS);
   } else {
     doFinalQuit();
   }

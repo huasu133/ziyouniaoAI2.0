@@ -30,6 +30,10 @@
   --settings-bg: #22222c;
   --hover-bg: rgba(255, 255, 255, 0.05);
   --active-bg: rgba(108, 77, 255, 0.15);
+  --t-white: #ffffff;
+  --hover-overlay: rgba(255, 255, 255, 0.08);
+  --json-string: #ce9178;
+  --json-key: #569cd6;
 }
 
 /* 亮色主题 */
@@ -62,6 +66,10 @@
   --settings-bg: #fafafa;
   --hover-bg: rgba(0, 0, 0, 0.03);
   --active-bg: rgba(108, 77, 255, 0.10);
+  --t-white: #ffffff;
+  --hover-overlay: rgba(0, 0, 0, 0.06);
+  --json-string: #ce9178;
+  --json-key: #569cd6;
 }
 
 /* 全局基础样式 */

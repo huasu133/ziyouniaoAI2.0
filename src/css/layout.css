@@ -213,7 +213,7 @@
 }
 .btn-send {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--t-white);
 }
 .btn-send:hover {
   background: var(--accent-hover);
@@ -228,7 +228,7 @@
 
 .btn-stop {
   background: var(--red);
-  color: #ffffff;
+  color: var(--t-white);
 }
 .btn-stop:hover {
   background: var(--red);

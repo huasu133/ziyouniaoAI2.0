@@ -11,6 +11,11 @@ out/
 *.zip
 *.exe
 
+# Temp files
+*.bak
+*.tmp
+*.orig
+
 # OS files
 .DS_Store
 *.swp

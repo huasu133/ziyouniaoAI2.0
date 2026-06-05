@@ -213,6 +213,24 @@
       this.set('lessons', lessons);
     },
 
+    // ─── 搜索 API Key ────────────────────────────────
+
+    /**
+     * 获取搜索 API Key
+     * @returns {{ tavily?: string, serper?: string }}
+     */
+    getSearchKeys: function () {
+      return this.get('search-keys', {});
+    },
+
+    /**
+     * 保存搜索 API Key
+     * @param {{ tavily?: string, serper?: string }} keys
+     */
+    setSearchKeys: function (keys) {
+      this.set('search-keys', keys);
+    },
+
     // ─── AI 记忆 ─────────────────────────────────────
 
     /**

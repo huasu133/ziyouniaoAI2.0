@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- CSP: unsafe-inline 保留于 script-src 和 style-src 是架构约束（单用户本地应用） -->
+  <!-- connect-src 包含搜索域名（Claw/Tavily/Serper），搜索功能需要这些外部连接 -->
   <!-- 所有外部域名访问通过IPC代理，connect-src仅允许本地网关 -->
   <!-- img-src data: 用于图片粘贴 base64 场景 -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta name="referrer" content="no-referrer">
   <title>自由鸟AI</title>
 
   <!-- CSS: 5 files -->
@@ -162,6 +165,23 @@
           <div class="settings-note">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             <span>API Key 和模型配置请在终端通过 <code>openclaw config</code> 命令设置。</span>
+          </div>
+        </div>
+
+        <!-- P0-1: 搜索 API Key -->
+        <div class="settings-section">
+          <h3 class="settings-section-title">搜索</h3>
+          <div class="settings-item">
+            <label class="settings-label">Tavily API Key</label>
+            <input type="password" id="setting-tavily-key" class="settings-input" placeholder="输入 Tavily Key（可选）" autocomplete="off">
+          </div>
+          <div class="settings-item">
+            <label class="settings-label">Serper API Key</label>
+            <input type="password" id="setting-serper-key" class="settings-input" placeholder="输入 Serper Key（可选）" autocomplete="off">
+          </div>
+          <div class="settings-note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>不填则使用 Claw 免费搜索。配置 Key 后自动启用 Tavily/Serper。</span>
           </div>
         </div>
 

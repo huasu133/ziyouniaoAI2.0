@@ -149,11 +149,3 @@
 .conversation-empty-text {
   font-size: 12px;
 }
-
-/* ─── 拖拽排序样式 ──────────────────────────────────── */
-.conversation-item.dragging {
-  opacity: 0.5;
-}
-.conversation-item.drag-over {
-  border-top: 2px solid var(--accent);
-}

@@ -9,6 +9,9 @@
   var API = window.ZYN3.API;
   var Storage = window.ZYN3.Storage;
 
+  // P0-4: generationId 用于快速 send→stop→send 竞态控制
+  var _generationId = 0;
+
   var Chat = {
     /**
      * 当前标签消息列表
@@ -41,10 +44,6 @@
      */
     suppressAutoScroll: false,
 
-    /**
-     * 是否由用户手动中止（防止 onDone/onError 重复 UI 更新）
-     */
-    _abortedByUser: false,
 
     /**
      * 初始化
@@ -114,6 +113,9 @@
      * 发送消息
      */
     sendMessage: function () {
+      // P0-4: generationId 用于竞态控制
+      var genId = ++_generationId;
+
       // P0-8: 每次从 DOM 获取按钮引用
       var input = document.getElementById('message-input');
       var sendBtn = document.getElementById('btn-send');
@@ -122,6 +124,9 @@
       if (!input) return;
       var text = input.value.trim();
       if (!text) return;
+
+      // P1: 保存最后输入用于重试
+      this._lastUserInput = text;
 
       if (this.isGenerating) return;
 
@@ -137,11 +142,9 @@
       this.addMessage('user', text);
 
       // 清空输入
-      // 记录输入历史
-      this.inputHistory.unshift(text);
-      if (this.inputHistory.length > 50) this.inputHistory.pop();
+      // P1: 从 Storage 刷新输入历史，避免双写
+      this.inputHistory = Storage.getInputHistory();
       this.historyIndex = -1;
-      Storage.setInputHistory(this.inputHistory);
       input.value = '';
       Utils.autoResizeTextarea(input);
 
@@ -161,7 +164,6 @@
       });
 
       this.isGenerating = true;
-      this._abortedByUser = false;
 
       // 准备消息列表
       var apiMessages = this.messages
@@ -191,6 +193,8 @@
       var totalChars = 0;
       var cutoff = -1;
       for (var j = apiMessages.length - 1; j >= 0; j--) {
+        // P1: 跳过 system prompt，不参与裁剪计算
+        if (apiMessages[j].role === 'system') continue;
         totalChars += (apiMessages[j].content ? apiMessages[j].content.length : 0);
         if (totalChars / 2.5 > CONTEXT_WINDOW) {
           cutoff = j;
@@ -206,11 +210,11 @@
       // 更新 token 估算（约 2.5 字符/token，中英文混合）
       var tokenCount = document.getElementById('token-count');
       if (tokenCount) {
-        var totalChars = 0;
+        var tokenChars = 0;
         for (var k = 0; k < apiMessages.length; k++) {
-          totalChars += apiMessages[k].content ? apiMessages[k].content.length : 0;
+          tokenChars += apiMessages[k].content ? apiMessages[k].content.length : 0;
         }
-        tokenCount.textContent = '~' + Math.ceil(totalChars / 2.5) + ' tokens';
+        tokenCount.textContent = '~' + Math.ceil(tokenChars / 2.5) + ' tokens';
       }
 
       // P0-7: AbortController 来自 api.js
@@ -222,8 +226,8 @@
           self._appendToLastMessage(delta);
         },
         onDone: function (fullText) {
-          // P1: 用户中止後跳过重复 UI 更新
-          if (self._abortedByUser) return;
+          // P0-4: generationId 竞态检查
+          if (genId !== _generationId) return;
           self.isGenerating = false;
           self._abortController = null;
 
@@ -252,8 +256,8 @@
           self._generateSummaryAndName();
         },
         onError: function (err) {
-          // P1: 用户中止後跳过重复 UI 更新
-          if (self._abortedByUser) return;
+          // P0-4: generationId 竞态检查
+          if (genId !== _generationId) return;
           self.isGenerating = false;
           self._abortController = null;
 
@@ -279,7 +283,8 @@
      * 停止生成
      */
     stopGeneration: function () {
-      this._abortedByUser = true;
+      // P0-4: 递增 generationId 使所有 pending 回调失效
+      _generationId++;
       if (this._abortController) {
         this._abortController.abort();
         this._abortController = null;
@@ -300,6 +305,30 @@
         this._saveCurrentMessages();
         this.renderMessages();
       }
+    },
+
+    /**
+     * 重试最后一条消息（P1: 重试按钮修复）
+     */
+    retryLastMessage: function () {
+      if (!this._lastUserInput) return;
+      if (this.isGenerating) return;
+
+      // 移除最后一条助手消息（失败的）
+      var lastMsg = this.messages[this.messages.length - 1];
+      if (lastMsg && lastMsg.role === 'assistant' && lastMsg._placeholder) {
+        this.messages.pop();
+      }
+
+      // 恢复输入框内容
+      var input = document.getElementById('message-input');
+      if (input) {
+        input.value = this._lastUserInput;
+        Utils.autoResizeTextarea(input);
+      }
+
+      // 重新发送
+      this.sendMessage();
     },
 
     /**
@@ -408,8 +437,22 @@
         loadMore.className = 'load-more';
         loadMore.innerHTML = '<button>显示全部 ' + msgs.length + ' 条消息 (已隐藏 ' + skipped + ' 条)</button>';
         loadMore.querySelector('button').onclick = function () {
-          self._renderAll = true;
-          self.renderMessages();
+          // P1: 分批渲染，每帧 50 条，避免冻结 UI
+          loadMore.remove();
+          var batchSize = 50;
+          var idx = 0;
+          var allMsgs = self.messages;
+          function renderBatch() {
+            var end = Math.min(idx + batchSize, allMsgs.length);
+            for (var bi = idx; bi < end; bi++) {
+              self._renderMessage(allMsgs[bi]);
+            }
+            idx = end;
+            if (idx < allMsgs.length) {
+              requestAnimationFrame(renderBatch);
+            }
+          }
+          requestAnimationFrame(renderBatch);
         };
         container.appendChild(loadMore);
         // 只渲染最近 MAX_RENDER 条
@@ -500,9 +543,9 @@
      */
     _renderJSON: function (data, depth) {
       if (depth === undefined) depth = 0;
-      if (depth > 10) return '<span style="color:#ce9178">[...太深]</span>';
+      if (depth > 10) return '<span style="color:var(--json-string)">[...太深]</span>';
       if (typeof data !== 'object' || data === null) {
-        return '<span style="color:#ce9178">' + Utils.escapeHTML(String(data)) + '</span>';
+        return '<span style="color:var(--json-string)">' + Utils.escapeHTML(String(data)) + '</span>';
       }
       var isArray = Array.isArray(data);
       var entries = isArray ? data : Object.keys(data);
@@ -515,7 +558,7 @@
         var k = isArray ? i : entries[i];
         var v = data[k];
         html += '<div style="margin-left:' + (indent + 20) + 'px">';
-        html += '<span style="color:#569cd6">' + Utils.escapeHTML(String(k)) + '</span>: ';
+        html += '<span style="color:var(--json-key)">' + Utils.escapeHTML(String(k)) + '</span>: ';
         html += this._renderJSON(v, depth + 1);
         html += '</div>';
       }
@@ -597,7 +640,7 @@
       });
 
       // 引用 blockquote — 先行合并相邻 > 行再整体包裹
-      html = html.replace(/^>\s*.+(?:\n^>\s*.+)*$/gm, function (match) {
+      html = html.replace(/^>\s*.+(?:[\n\r]^>\s*.+)*$/gm, function (match) {
         var inner = match.replace(/^>\s*/gm, '');  // 移除每行的 > 前缀
         return '<blockquote>' + inner + '</blockquote>';
       });
@@ -607,15 +650,17 @@
 
       // 链接 [text](url) — 仅允许 http/https/mailto/data 协议
       html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (match, text, url) {
-        var safeUrl = /^(https?:|mailto:|data:)/i.test(url) ? url : '#blocked';
+        // P2: 允许锚点和相对路径
+        var safeUrl = /^(https?:|mailto:|data:|#|\/)/i.test(url) ? url : '#blocked';
         return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
       });
 
-      // 加粗 **text**
-      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
+      // P2: 先斜体再粗体，避免 `**text**` 中的 `*` 被斜体误匹配
       // 斜体 *text*
       html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+      // 加粗 **text**
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
 
       // 换行 → <br>（跳过 <pre> 内部）
       var parts = html.split(/(<pre[\s\S]*?<\/pre>)/g);
@@ -634,7 +679,10 @@
      */
     _saveCurrentMessages: function () {
       if (this.currentTabId) {
-        Storage.setTabMessages(this.currentTabId, this.messages);
+        // P1: 检查 Storage 返回值，localStorage 满时提示
+        if (!Storage.setTabMessages(this.currentTabId, this.messages)) {
+          this.showError('存储空间不足，请清理一些旧对话');
+        }
       }
     },
 
@@ -727,7 +775,9 @@
           // 第二部分：结构化摘要（渲染到右侧面板）
           var summary = (parts[1] || '').trim();
           if (summary) {
-            var html = summary
+            // P1-11: 先转义 HTML 再应用正则，防止 XSS
+            var Utils = window.ZYN3.Utils;
+            var html = Utils.escapeHTML(summary)
               .replace(/## (.+)/g, '<h3>$1</h3>')
               .replace(/- (.+)/g, '<li>$1</li>');
             // 渲染到记忆面板
@@ -777,10 +827,20 @@
         html += '<div class="mem-item">' +
           '<div class="mem-key">' + Utils.escapeHTML(m.key || '') + '</div>' +
           '<div class="mem-val">' + Utils.escapeHTML((m.value || '').slice(0, 100)) + '</div>' +
-          '<button class="mem-del" onclick="window.ZYN3.Chat._deleteMemory(\'' + Utils.escapeHTML(m.key || '') + '\')">✕</button>' +
+          // P1: 用 data-mem-key 替代 onclick
+          '<button class="mem-del" data-mem-key="' + Utils.escapeHTML(m.key || '') + '">✕</button>' +
         '</div>';
       });
       panel.innerHTML = html;
+
+      // P1: 用 addEventListener 绑定删除按钮
+      var self = this;
+      panel.querySelectorAll('.mem-del').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var key = btn.getAttribute('data-mem-key');
+          self._deleteMemory(key);
+        });
+      });
     },
 
     /**

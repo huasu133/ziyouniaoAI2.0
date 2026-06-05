@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<boolean>}
    */
   saveLessons: (lessons) => {
-    if (lessons.length > 1000) throw new Error('lessons data too large (max 1000)');
+    if (!Array.isArray(lessons) || lessons.length > 1000) throw new Error('Invalid lessons data');
     return ipcRenderer.invoke('save-lessons', lessons);
   },
 
@@ -27,6 +27,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<{status: number, data: string|null, error?: string}>}
    */
   httpGet: (url) => ipcRenderer.invoke('http-get', url),
+
+  /**
+   * 任意 URL 抓取（通过主进程 IPC 代理，含10s超时和1MB限制）
+   * @param {string} url
+   * @returns {Promise<{status: number, data: string|null, title?: string, error?: string}>}
+   */
+  fetchUrl: (url) => ipcRenderer.invoke('fetch-url', url),
 
   /**
    * 保存所有数据（响应 before-quit）

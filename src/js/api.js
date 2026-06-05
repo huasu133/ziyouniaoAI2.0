@@ -124,8 +124,9 @@
                   fullText += content;
                   onMessage(content);
                 }
-              } catch (_) {
-                // 解析失败跳过
+              } catch (e) {
+                // P1: SSE 解析失败时输出调试信息
+                console.warn('[API] SSE parse error:', line, e.message);
               }
             }
           }
@@ -182,6 +183,7 @@
     },
     /**
      * 带重试的 fetch（仅连接阶段重试，流式不重试）
+     * 备用：连接阶段重试，当前未被调用
      * @param {string} url
      * @param {Object} options
      * @param {number} maxRetries
