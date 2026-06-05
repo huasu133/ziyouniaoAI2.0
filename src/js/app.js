@@ -41,6 +41,24 @@
       // 6. 网关状态检查
       Gateway.startPolling(30000);
 
+      // 6b. 状态指示器 — 手册 §5.8
+      async function checkConnection() {
+        var indicator = document.getElementById('statusIndicator');
+        if (!indicator) return;
+        try {
+          var res = await fetch('http://localhost:18789/health', { signal: AbortSignal.timeout(3000) });
+          if (res.ok) {
+            indicator.innerHTML = '🟢';
+            indicator.title = '已连接 OpenClaw';
+          } else throw new Error();
+        } catch (_) {
+          indicator.innerHTML = '🔴';
+          indicator.title = 'OpenClaw 未连接';
+        }
+      }
+      checkConnection();
+      setInterval(checkConnection, 30000);
+
       // 7. 绑定全局 UI 事件
       this._bindEvents();
 
