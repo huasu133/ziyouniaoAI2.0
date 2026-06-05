@@ -132,14 +132,14 @@
           return { role: m.role, content: m.content };
         });
 
-      // P1: 历史裁剪 — 从最新往回估算 token，保留最近 N 条
-      // 约 1 token ≈ 4 字符，以 maxTokens 的 80% 为阈值
-      var maxModelTokens = Math.max(settings.maxTokens || 4096, 1024);
+      // P0: 历史裁剪 — 使用模型上下文窗口(128K tokens)，非输出maxTokens
+      // DeepSeek 上下文为 128K tokens，设阈值 64K (~262K 字符，中英文混合约2.5字符/token)
+      var CONTEXT_WINDOW = 65536;
       var totalChars = 0;
       var cutoff = -1;
       for (var j = apiMessages.length - 1; j >= 0; j--) {
         totalChars += (apiMessages[j].content ? apiMessages[j].content.length : 0);
-        if (totalChars / 4 > maxModelTokens * 0.8) {
+        if (totalChars / 2.5 > CONTEXT_WINDOW) {
           cutoff = j;
           break;
         }
@@ -285,12 +285,17 @@
         lastMsg.content += delta;
       }
 
-      // 更新 DOM
+      // 更新 DOM — P0: 检测未闭合代码块，流式中避免错误渲染
       var msgEl = document.getElementById('msg-' + lastMsg.id);
       if (msgEl) {
         var contentEl = msgEl.querySelector('.message-content');
         if (contentEl) {
-          contentEl.innerHTML = this._renderMarkdown(lastMsg.content);
+          var codeBlockOpen = (lastMsg.content.match(/```/g) || []).length % 2 !== 0;
+          if (codeBlockOpen) {
+            contentEl.textContent = lastMsg.content;
+          } else {
+            contentEl.innerHTML = this._renderMarkdown(lastMsg.content);
+          }
         }
       }
 
@@ -315,13 +320,20 @@
       var container = document.getElementById('messages-container');
       if (!container) return;
 
-      // 清除现有消息（保留欢迎页）
+      // 清除现有消息 + 加载更多按钮
       var existing = container.querySelectorAll('.message');
       existing.forEach(function (el) { el.remove(); });
+      var loadMoreBtns = container.querySelectorAll('.load-more');
+      loadMoreBtns.forEach(function (el) { el.remove(); });
 
       var self = this;
       var MAX_RENDER = 200;
       var msgs = this.messages;
+
+      // P0: 检查 _renderAll 标志，点击"显示全部"后全量渲染
+      if (this._renderAll) {
+        MAX_RENDER = Infinity;
+      }
 
       // 长对话性能优化：限制初始渲染数量
       if (msgs.length > MAX_RENDER) {
@@ -408,6 +420,51 @@
         return '<pre><code' + langClass + '>' + code.trim() + '</code></pre>';
       });
 
+      // 无序列表 (- / * / + 开头行)
+      html = html.replace(/(^[-*+]\s+.+$\n?)+/gm, function (match) {
+        var items = match.trim().split('\n');
+        var listItems = '';
+        for (var li = 0; li < items.length; li++) {
+          var itemContent = items[li].replace(/^[-*+]\s+/, '');
+          listItems += '<li>' + itemContent + '</li>';
+        }
+        return '<ul>' + listItems + '</ul>';
+      });
+
+      // 有序列表 (数字. 开头行)
+      html = html.replace(/(^\d+\.\s+.+$\n?)+/gm, function (match) {
+        var items = match.trim().split('\n');
+        var listItems = '';
+        for (var oi = 0; oi < items.length; oi++) {
+          var itemContent = items[oi].replace(/^\d+\.\s+/, '');
+          listItems += '<li>' + itemContent + '</li>';
+        }
+        return '<ol>' + listItems + '</ol>';
+      });
+
+      // 表格 (| col1 | col2 | ...)
+      html = html.replace(/\|(.+?)\|\n\|[-:| ]+\|\n((?:\|.+\|\n?)+)/g, function (match, headerRow, dataRows) {
+        var headers = headerRow.split('|').map(function (h) { return h.trim(); });
+        var rows = dataRows.trim().split('\n');
+        var tableHtml = '<table><thead><tr>';
+        for (var hi = 0; hi < headers.length; hi++) {
+          tableHtml += '<th>' + headers[hi] + '</th>';
+        }
+        tableHtml += '</tr></thead><tbody>';
+        for (var ri = 0; ri < rows.length; ri++) {
+          var cells = rows[ri].split('|').map(function (c) { return c.trim(); });
+          tableHtml += '<tr>';
+          for (var ci = 0; ci < cells.length; ci++) {
+            if (cells[ci] !== '') {
+              tableHtml += '<td>' + cells[ci] + '</td>';
+            }
+          }
+          tableHtml += '</tr>';
+        }
+        tableHtml += '</tbody></table>';
+        return tableHtml;
+      });
+
       // 行内代码 (`) — 内部已是转义后的安全内容
       html = html.replace(/`([^`]+)`/g, function (match, code) {
         return '<code>' + code + '</code>';
@@ -418,17 +475,20 @@
         return '<h' + hashes.length + '>' + content.trim() + '</h' + hashes.length + '>';
       });
 
-      // 引用 blockquote — 合并相邻 > 行
-      html = html.replace(/^>\s*(.+)$(?:\n^>\s*(.+))*$/gm, function (match) {
-        var inner = match.replace(/^>\s*/gm, '').trim();
+      // 引用 blockquote — 先行合并相邻 > 行再整体包裹
+      html = html.replace(/^>\s*.+(?:\n^>\s*.+)*$/gm, function (match) {
+        var inner = match.replace(/^>\s*/gm, '');  // 移除每行的 > 前缀
         return '<blockquote>' + inner + '</blockquote>';
       });
 
       // 水平线 ---
       html = html.replace(/^-{3,}$/gm, '<hr>');
 
-      // 链接 [text](url)
-      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+      // 链接 [text](url) — 仅允许 http/https/mailto 协议
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (match, text, url) {
+        var safeUrl = /^(https?:|mailto:)/i.test(url) ? url : '#blocked';
+        return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
+      });
 
       // 加粗 **text**
       html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');

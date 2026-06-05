@@ -118,6 +118,12 @@
         event.stopPropagation();
       }
 
+      // P0: 关闭标签前检查是否正在生成，若有则先中止
+      var Chat = window.ZYN3.Chat;
+      if (Chat && Chat.currentTabId === tabId && Chat.isGenerating) {
+        Chat.stopGeneration();
+      }
+
       if (this.tabs.length <= 1) {
         // 只有一个标签时，清空内容但不删除
         // P0: 检查生成状态

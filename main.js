@@ -38,6 +38,10 @@ let _restartCount = 0;
 let _restartWindowStart = 0;
 const MAX_RESTARTS = 3;
 const RESTART_WINDOW_MS = 60000;
+let _renderCrashCount = 0;
+let _renderCrashWindowStart = 0;
+const MAX_RENDER_CRASHES = 3;
+const RENDER_CRASH_WINDOW_MS = 30000;
 
 // ─── CSP 策略说明 ────────────────────────────────────────────────────────
 // CSP 策略在 src/index.html 的 <meta http-equiv="Content-Security-Policy">
@@ -283,20 +287,51 @@ function createWindow() {
 
   mainWindow.webContents.on('render-process-gone', (event, details) => {
     console.error('[main] Render process gone:', details.reason);
-    if (!isQuitting) {
-      setTimeout(() => {
-        try {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'))
-              .catch(function (err) {
-                console.error('[main] Failed to reload after render crash:', err.message);
-              });
-          }
-        } catch (err) {
-          console.error('[main] Failed to reload after render crash:', err.message);
-        }
-      }, 1000);
+    if (isQuitting) return;
+
+    // P0: 崩溃次数限制，防无限重启循环
+    var now = Date.now();
+    if (now - _renderCrashWindowStart > RENDER_CRASH_WINDOW_MS) {
+      _renderCrashCount = 0;
+      _renderCrashWindowStart = now;
     }
+    _renderCrashCount++;
+
+    if (_renderCrashCount > MAX_RENDER_CRASHES) {
+      console.error('[main] Render crashed too many times, giving up');
+      dialog.showErrorBox('界面崩溃', '渲染进程反复崩溃（30秒内超过3次）。\n请重启应用。');
+      isQuitting = true;
+      app.quit();
+      return;
+    }
+
+    if (details.reason === 'launch-failed') {
+      dialog.showErrorBox('启动失败', '渲染进程启动失败，请检查UI文件完整性。');
+      isQuitting = true;
+      app.quit();
+      return;
+    }
+
+    if (details.reason === 'oom') {
+      dialog.showErrorBox('内存不足', '渲染进程因内存不足被终止。\n请关闭部分对话标签后重试。');
+      isQuitting = true;
+      app.quit();
+      return;
+    }
+
+    // crashed / killed: 尝试恢复
+    setTimeout(function () {
+      try {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadFile(path.join(__dirname, 'src', 'index.html'))
+            .catch(function (err) {
+              console.error('[main] Failed to reload after render crash:', err.message);
+            });
+        }
+      } catch (err) {
+        console.error('[main] Failed to reload after render crash:', err.message);
+      }
+    }, 1000);
   });
 
   mainWindow.on('closed', () => {
@@ -334,8 +369,15 @@ ipcMain.handle('save-lessons', (_event, lessons) => {
 });
 
 ipcMain.handle('http-get', async (_event, url) => {
-  // 安全白名单：仅允许本地网关
-  if (!url || !url.startsWith('http://127.0.0.1:18789')) {
+  // P0: 使用 URL 构造函数精确校验 hostname+port，防止 startsWith 绕过
+  var parsed;
+  try {
+    parsed = new URL(url);
+  } catch (_) {
+    console.error('[main] http-get blocked URL (parse error):', url);
+    return { status: 0, data: null, error: 'URL not allowed' };
+  }
+  if (parsed.protocol !== 'http:' || parsed.hostname !== '127.0.0.1' || parsed.port !== '18789') {
     console.error('[main] http-get blocked URL:', url);
     return { status: 0, data: null, error: 'URL not allowed' };
   }

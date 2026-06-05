@@ -237,16 +237,22 @@
      * 数据已由各模块实时保存，此为协调信号
      */
     saveAll: function () {
-      console.log('[Storage] saveAll called — syncing all data');
-      // 遍历所有标签，确保消息数据完整
+      console.log('[Storage] saveAll called — persisting memory state');
       try {
-        var tabs = this.getTabs();
-        for (var i = 0; i < tabs.length; i++) {
-          var msgs = this.getTabMessages(tabs[i].id);
-          if (msgs) {
-            this.setTabMessages(tabs[i].id, msgs);
-          }
+        // P0: 从内存对象主动拉取最新状态，而非重放 localStorage
+        var Chat = window.ZYN3.Chat;
+        var Tabs = window.ZYN3.Tabs;
+
+        // 保存当前聊天消息
+        if (Chat && Chat.currentTabId && Chat.messages) {
+          this.setTabMessages(Chat.currentTabId, Chat.messages);
         }
+
+        // 保存标签列表
+        if (Tabs && Tabs.tabs) {
+          this.setTabs(Tabs.tabs);
+        }
+
         // 同步设置
         var settings = this.getSettings();
         if (settings) {

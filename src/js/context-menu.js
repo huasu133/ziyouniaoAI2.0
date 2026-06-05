@@ -99,14 +99,20 @@
         }
       }
       menu.innerHTML = html;
+
+      // P0: 先设初始位置再显示，避免在(0,0)闪现一帧
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
       menu.classList.remove('hidden');
 
-      // 位置修正 — 防四边溢出
+      // 读实际尺寸后二次修正，防溢出窗口边界
       var rect = menu.getBoundingClientRect();
       var maxX = window.innerWidth - rect.width - 10;
       var maxY = window.innerHeight - rect.height - 10;
-      menu.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
-      menu.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+      var finalLeft = Math.max(0, Math.min(x, maxX));
+      var finalTop = Math.max(0, Math.min(y, maxY));
+      if (finalLeft !== x) menu.style.left = finalLeft + 'px';
+      if (finalTop !== y) menu.style.top = finalTop + 'px';
 
       this.visible = true;
 
