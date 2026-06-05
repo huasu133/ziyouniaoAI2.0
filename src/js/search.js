@@ -74,7 +74,7 @@
         if (cacheKeys.length > MAX_CACHE) { delete SEARCH_CACHE[cacheKeys.shift()]; }
         return { results: ddg, source: 'duckduckgo' };
       }
-      return { error: '搜索无结果' };
+      return { error: '搜索无结果（请检查网络连接）' };
     },
 
     /**

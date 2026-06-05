@@ -104,6 +104,7 @@
 
       this.activeTabId = tabId;
       Storage.setActiveTab(this.activeTabId);
+      Chat._renderAll = false; // 重置懒加载标志
       this._renderTabs();
       this._activateTab(this.activeTabId);
     },

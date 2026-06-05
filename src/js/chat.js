@@ -233,8 +233,6 @@
           var stpBtn = document.getElementById('btn-stop');
           if (sBtn) sBtn.classList.remove('hidden');
           if (stpBtn) stpBtn.classList.add('hidden');
-
-          self.showError('请求失败: ' + (err.message || '未知错误'));
         },
       });
     },

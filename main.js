@@ -450,7 +450,12 @@ app.whenReady().then(async () => {
   // ─── 全局快捷键 Alt+Space ────────────────────────
   globalShortcut.register('Alt+Space', function () {
     if (mainWindow) {
-      mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
     }
   });
 

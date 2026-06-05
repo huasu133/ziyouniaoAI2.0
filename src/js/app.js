@@ -167,7 +167,9 @@
           if (!q) return;
           var searchEl = document.querySelector('.search-results');
           if (searchEl) searchEl.remove();
-          window.ZYN3.Search.searchWeb(q).then(function (r) {
+          var Search = window.ZYN3.Search;
+          if (!Search) return;
+          Search.searchWeb(q).then(function (r) {
             var resultsHtml = r.results ? r.results.slice(0, 5).map(function (item) {
               return '- [' + (item.title || '无标题') + '](' + (item.url || '#') + ') ' + (item.snippet || '');
             }).join('\n') : (r.error || '无结果');
@@ -198,8 +200,8 @@
 
       // ─── 快捷键 ────────────────────────────────────
       document.addEventListener('keydown', function (e) {
-        // Cmd/Ctrl + K: 聚焦侧栏搜索（暂无搜索，聚焦侧栏）
-        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        // Cmd/Ctrl + K: 侧栏（不在输入框中触发）
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k' && e.target.tagName !== 'TEXTAREA') {
           e.preventDefault();
           Sidebar.expand();
         }
@@ -236,10 +238,12 @@
           if (App && App.showToast) App.showToast('找到 ' + found + ' 处匹配', found > 0 ? 'success' : 'info');
         }
 
-        // Escape: 关闭设置
+        // Escape: 关闭设置 / 停止生成
         if (e.key === 'Escape') {
           if (Settings.visible) {
             Settings.close();
+          } else if (Chat.isGenerating) {
+            Chat.stopGeneration();
           }
         }
       });
@@ -353,10 +357,13 @@
     dropZone.addEventListener('dragover', function (e) { e.preventDefault(); });
     dropZone.addEventListener('drop', async function (e) {
       e.preventDefault();
-      var file = e.dataTransfer.files[0];
-      if (!file) return;
-      var text = await file.text();
-      dropZone.value = text;
+      var files = e.dataTransfer.files;
+      if (!files || !files.length) return;
+      var allText = '';
+      for (var fi = 0; fi < files.length; fi++) {
+        try { allText += await files[fi].text() + '\n'; } catch (_) {}
+      }
+      dropZone.value = dropZone.value ? dropZone.value + '\n' + allText : allText;
     });
   }
 
