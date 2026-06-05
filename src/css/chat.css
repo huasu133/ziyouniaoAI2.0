@@ -69,6 +69,29 @@
   letter-spacing: 0.5px;
 }
 
+.history-popup-search {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.history-popup-search input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg3);
+  color: var(--t1);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  outline: none;
+}
+.history-popup-search input:focus {
+  border-color: var(--accent);
+}
+.history-popup-search input::placeholder {
+  color: var(--t3);
+}
+
 .history-list {
   flex: 1;
   overflow-y: auto;

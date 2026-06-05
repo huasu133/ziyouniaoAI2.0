@@ -257,9 +257,28 @@
       if (isHidden) {
         this.renderHistoryPopup();
         popup.classList.remove('hidden');
+        // 聚焦搜索框
+        var searchInput = document.getElementById('history-search');
+        if (searchInput) setTimeout(function () { searchInput.focus(); }, 50);
       } else {
         popup.classList.add('hidden');
       }
+    },
+
+    /**
+     * 过滤历史弹出层
+     * @param {string} query
+     */
+    filterHistory: function (query) {
+      var list = document.getElementById('history-list');
+      if (!list) return;
+      var items = list.querySelectorAll('.conversation-item');
+      var q = (query || '').toLowerCase().trim();
+      items.forEach(function (item) {
+        var titleEl = item.querySelector('.conversation-item-title');
+        var title = titleEl ? titleEl.textContent.toLowerCase() : '';
+        item.style.display = (!q || title.indexOf(q) !== -1) ? '' : 'none';
+      });
     },
 
     /**

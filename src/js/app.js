@@ -76,6 +76,14 @@
         });
       }
 
+      // 弹出层搜索过滤
+      var historySearch = document.getElementById('history-search');
+      if (historySearch) {
+        historySearch.addEventListener('input', function () {
+          Sidebar.filterHistory(historySearch.value);
+        });
+      }
+
       // 点击其他地方关闭历史弹出层
       document.addEventListener('click', function (e) {
         var popup = document.getElementById('history-popup');
@@ -232,14 +240,6 @@
         exportBtn.addEventListener('click', function () {
           Chat.exportMarkdown();
           App.showToast('对话已导出', 'success');
-        });
-      }
-
-      // ─── 清空会话 ──────────────────────────────────
-      var clearBtn = document.getElementById('btn-clear-conversations');
-      if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-          Sidebar.clearAll();
         });
       }
 
