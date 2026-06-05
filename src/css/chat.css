@@ -356,3 +356,7 @@
 }
 .message:hover .msg-copy-btn { opacity: 1; }
 .message.user .msg-copy-btn { right: auto; left: 8px; }
+
+[data-theme="light"] .msg-copy-btn {
+  border-color: rgba(0,0,0,0.15);
+}
