@@ -55,6 +55,10 @@
       var tabs = Storage.getTabs();
       var activeTab = Storage.getActiveTab();
 
+      // 更新会话计数
+      var countEl = document.getElementById('conv-count');
+      if (countEl) countEl.textContent = '(' + (tabs ? tabs.length : 0) + ')';
+
       if (!tabs || !Array.isArray(tabs) || tabs.length === 0) {
         list.innerHTML = '' +
           '<div class="conversation-empty">' +
