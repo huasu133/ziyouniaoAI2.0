@@ -415,7 +415,6 @@
   border-radius: 4px;
   font-size: 11px;
   cursor: pointer;
-  transition: all 0.15s;
 }
 .copy-code-btn:hover {
   background: var(--hover-bg);
@@ -491,10 +490,12 @@
 .message-body { position: relative; }
 .msg-copy {
   position: absolute; right: -4px; top: 0;
-  background: var(--bg3); border: 1px solid var(--border);
+  background: transparent; border: none;
   border-radius: 4px; cursor: pointer; font-size: 12px;
-  padding: 2px 4px; opacity: 0; transition: opacity 0.2s;
+  padding: 2px 4px; opacity: 0;
   color: var(--t2); line-height: 1;
 }
-.message:hover .msg-copy { opacity: 1; }
+.message:hover .msg-copy,
+.msg-copy:hover { opacity: 1; }
+.msg-copy:hover { background: var(--hover-bg); }
 .message.user .msg-copy { right: auto; left: -4px; }
