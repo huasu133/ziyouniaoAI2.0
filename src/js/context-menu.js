@@ -5,6 +5,7 @@
 (function () {
   'use strict';
 
+  var Utils = window.ZYN3.Utils;
   var ContextMenu = {
     /**
      * 当前菜单是否可见
