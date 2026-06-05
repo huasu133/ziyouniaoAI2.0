@@ -337,3 +337,22 @@
 .load-more button:hover {
   background: var(--accent-bg);
 }
+
+/* ─── 消息复制按钮 ────────────────────────────────── */
+.message { position: relative; }
+.msg-copy-btn {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  color: var(--t2);
+}
+.message:hover .msg-copy-btn { opacity: 1; }
+.message.user .msg-copy-btn { right: auto; left: 8px; }

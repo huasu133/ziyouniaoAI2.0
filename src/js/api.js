@@ -180,6 +180,27 @@
           ];
         });
     },
+    /**
+     * 带重试的 fetch（仅连接阶段重试，流式不重试）
+     * @param {string} url
+     * @param {Object} options
+     * @param {number} maxRetries
+     * @returns {Promise<Response>}
+     */
+    connectWithRetry: async function (url, options, maxRetries) {
+      if (maxRetries === undefined) maxRetries = 2;
+      for (var i = 0; i < maxRetries; i++) {
+        try {
+          var res = await fetch(url, options);
+          if (res.ok) return res;
+          if (res.status < 500) return res; // 4xx 不重试
+        } catch (e) {
+          if (i === maxRetries - 1) throw e;
+        }
+        await new Promise(function (r) { setTimeout(r, 1000 * (i + 1)); });
+      }
+      throw new Error('连接失败');
+    },
   };
 
   window.ZYN3 = window.ZYN3 || {};

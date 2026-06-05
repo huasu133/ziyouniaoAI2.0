@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const os = require('os');
 const { spawn, execFile } = require('child_process');
@@ -420,6 +420,32 @@ app.whenReady().then(async () => {
     dialog.showErrorBox('未找到 OpenClaw', 'OpenClaw CLI 工具未找到。\n请先安装并配置。\n\n安装: curl -fsSL https://openclaw.ai/install.sh | bash\n配置: openclaw onboard');
     // 不退出，让UI继续加载
   }
+
+  // ─── 托盘 ──────────────────────────────────────────
+  var trayIcon = path.join(__dirname, 'assets', 'icon.png');
+  var tray = null;
+  try {
+    tray = new Tray(nativeImage.createFromPath(trayIcon).resize({ width: 16, height: 16 }));
+    tray.setToolTip('自由鸟AI');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: '显示自由鸟', click: function () { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } } },
+      { type: 'separator' },
+      { label: '退出', click: function () { isQuitting = true; app.quit(); } },
+    ]));
+    tray.on('click', function () { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
+  } catch (_) { console.log('[main] Tray not available'); }
+
+  // ─── Git 快照（启动后 10s + 每小时）─────────────
+  function gitSnapshot() {
+    var cp = require('child_process');
+    var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    var dir = path.join(__dirname);
+    cp.exec('git -C "' + dir + '" add -A && git -C "' + dir + '" diff --cached --quiet || git -C "' + dir + '" commit -m "snapshot: ' + ts + '"', { timeout: 30000 }, function (err, stdout) {
+      if (err && !stdout.includes('nothing to commit')) console.error('[快照] 失败:', err.message);
+    });
+  }
+  setTimeout(gitSnapshot, 10000);
+  setInterval(gitSnapshot, 60 * 60 * 1000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

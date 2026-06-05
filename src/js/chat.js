@@ -26,6 +26,12 @@
     isGenerating: false,
 
     /**
+     * 输入历史
+     */
+    inputHistory: [],
+    historyIndex: -1,
+
+    /**
      * AbortController 引用，用于停止
      */
     _abortController: null,
@@ -104,6 +110,10 @@
       this.addMessage('user', text);
 
       // 清空输入
+      // 记录输入历史
+      this.inputHistory.unshift(text);
+      if (this.inputHistory.length > 50) this.inputHistory.pop();
+      this.historyIndex = -1;
       input.value = '';
       Utils.autoResizeTextarea(input);
 
@@ -128,6 +138,21 @@
       // 准备消息列表
       var apiMessages = this.messages
         .filter(function (m) { return !m._placeholder; })
+
+      // 风格预设 — 首次对话时注入 system prompt
+      var styleSelect = document.getElementById('style-select');
+      if (styleSelect && styleSelect.value && this.messages.length <= 1) {
+        var styles = {
+          'efficient': '每条回复不超过3句话。结论在第一句。不要"好的""让我来"等废话。用表格代替段落。',
+          'creative': '可以适当使用比喻和故事。鼓励多角度思考。回复可以长一些，但要有洞察。语气轻松。',
+          'professional': '正式、有条理。结论后跟论据。引用数据和标准。不省略步骤。',
+          'friendly': '像朋友聊天一样。可以用"你"和自然语气。适当共情。回复温暖但有干货。'
+        };
+        var systemPrompt = styles[styleSelect.value] || '';
+        if (systemPrompt) {
+          apiMessages = [{ role: 'system', content: systemPrompt }].concat(apiMessages);
+        }
+      }
         .map(function (m) {
           return { role: m.role, content: m.content };
         });
@@ -182,6 +207,9 @@
 
           // 滚动到底部
           self.scrollToBottom();
+
+          // 自动记录教训
+          self._reflectLesson('对话', text.substring(0, 50));
         },
         onError: function (err) {
           // P1: 用户中止後跳过重复 UI 更新
@@ -386,7 +414,17 @@
 
       var contentHtml = message.content;
       if (!message._placeholder) {
-        contentHtml = this._renderMarkdown(message.content);
+        // JSON 自动检测 — 纯 JSON 响应渲染为可折叠树视图
+        try {
+          var parsed = JSON.parse(message.content);
+          if (typeof parsed === 'object' && parsed !== null) {
+            contentHtml = this._renderJSON(parsed);
+          } else {
+            contentHtml = this._renderMarkdown(message.content);
+          }
+        } catch (_) {
+          contentHtml = this._renderMarkdown(message.content);
+        }
       }
 
       div.innerHTML = '' +
@@ -397,9 +435,54 @@
             '<span class="message-time">' + Utils.formatTime(message.timestamp) + '</span>' +
           '</div>' +
           '<div class="message-content">' + contentHtml + '</div>' +
+          '<button class="msg-copy-btn" title="复制">📋</button>' +
         '</div>';
 
       container.appendChild(div);
+
+      // 复制按钮
+      var copyBtn = div.querySelector('.msg-copy-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', function () {
+          var contentEl = div.querySelector('.message-content');
+          var txt = contentEl ? contentEl.textContent : message.content;
+          navigator.clipboard.writeText(txt).then(function () {
+            copyBtn.textContent = '✅';
+            setTimeout(function () { copyBtn.textContent = '📋'; }, 2000);
+          }).catch(function () {});
+        });
+      }
+    },
+
+    /**
+     * JSON 树视图渲染
+     * @param {*} data
+     * @param {number} depth
+     * @returns {string}
+     */
+    _renderJSON: function (data, depth) {
+      if (depth === undefined) depth = 0;
+      if (depth > 10) return '<span style="color:#ce9178">[...太深]</span>';
+      if (typeof data !== 'object' || data === null) {
+        return '<span style="color:#ce9178">' + Utils.escapeHTML(String(data)) + '</span>';
+      }
+      var isArray = Array.isArray(data);
+      var entries = isArray ? data : Object.keys(data);
+      var indent = depth * 20;
+      if (entries.length === 0) return isArray ? '[]' : '{}';
+
+      var html = '<details ' + (depth < 1 ? 'open' : '') + ' style="margin-left:' + indent + 'px">';
+      html += '<summary>' + (isArray ? '[' + entries.length + '项]' : '{' + Object.keys(data).length + '个键}') + '</summary>';
+      for (var i = 0; i < entries.length; i++) {
+        var k = isArray ? i : entries[i];
+        var v = data[k];
+        html += '<div style="margin-left:' + (indent + 20) + 'px">';
+        html += '<span style="color:#569cd6">' + Utils.escapeHTML(String(k)) + '</span>: ';
+        html += this._renderJSON(v, depth + 1);
+        html += '</div>';
+      }
+      html += '</details>';
+      return html;
     },
 
     /**
@@ -552,6 +635,18 @@
       }
       this._saveCurrentMessages();
       this.renderMessages();
+    },
+
+    /**
+     * 自动记录教训
+     */
+    _reflectLesson: function (category, lesson) {
+      if (!lesson) return;
+      var Storage = window.ZYN3.Storage;
+      var lessons = Storage.getLessons();
+      lessons.push({ category: category, lesson: String(lesson).slice(0, 500), time: Date.now() });
+      if (lessons.length > 100) lessons = lessons.slice(-100);
+      Storage.setLessons(lessons);
     },
   };
 
