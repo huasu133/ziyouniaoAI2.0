@@ -679,10 +679,7 @@
      */
     _saveCurrentMessages: function () {
       if (this.currentTabId) {
-        // P1: 检查 Storage 返回值，localStorage 满时提示
-        if (!Storage.setTabMessages(this.currentTabId, this.messages)) {
-          this.showError('存储空间不足，请清理一些旧对话');
-        }
+        Storage.setTabMessages(this.currentTabId, this.messages);
       }
     },
 
