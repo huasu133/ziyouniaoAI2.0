@@ -34,8 +34,10 @@
     set: function (key, value) {
       try {
         localStorage.setItem(NS + key, JSON.stringify(value));
+        return true;
       } catch (err) {
         console.error('[Storage] Failed to set', key, err);
+        return false;
       }
     },
 
@@ -106,7 +108,7 @@
      * @param {Array} messages
      */
     setTabMessages: function (tabId, messages) {
-      this.set('tab:' + tabId, messages);
+      return this.set('tab:' + tabId, messages);
     },
 
     /**
