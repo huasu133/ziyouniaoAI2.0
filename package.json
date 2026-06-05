@@ -2,15 +2,13 @@
   "name": "ziyouniao-ai",
   "version": "3.0.0",
   "description": "自由鸟AI - 基于OpenClaw的智能对话客户端",
-  "_comment_electron": "Electron 33.x 系列为当前稳定版本，已包含已知 CVE 的安全补丁",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder",
     "build:mac": "electron-builder --mac",
     "build:win": "electron-builder --win",
-    "icons": "bash scripts/generate-icons.sh",
-    "postinstall": "",
+    "icons": "bash scripts/generate-icons.sh"
   },
   "author": "Ziyouniao Team",
   "license": "MIT",
