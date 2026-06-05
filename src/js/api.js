@@ -193,7 +193,7 @@
           // 如果 API 不支持列表，返回默认
           return [
             { id: 'deepseek-v4-flash' },
-            { id: 'deepseek-v4-flash-reasoner' },
+            { id: 'deepseek-v4-pro' },
           ];
         });
     },
