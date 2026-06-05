@@ -143,6 +143,23 @@
         });
       }
 
+      // ─── 搜索栏实时搜索 ────────────────────────────
+      var searchBar = document.querySelector('.search-bar-input');
+      if (searchBar) {
+        searchBar.addEventListener('input', function () {
+          var q = searchBar.value.toLowerCase();
+          var msgs = document.querySelectorAll('.message-content');
+          msgs.forEach(function (el) {
+            if (!q || el.textContent.toLowerCase().indexOf(q) !== -1) {
+              el.style.background = '';
+              el.parentElement.parentElement.style.display = '';
+            } else {
+              el.parentElement.parentElement.style.display = 'none';
+            }
+          });
+        });
+      }
+
       // ─── 模型选择（统一由 settings.js 管理）───────
 
       // ─── 欢迎页模型按钮 ────────────────────────────
@@ -228,23 +245,11 @@
           Settings.toggle();
         }
 
-        // Ctrl/Cmd+F: 聊天内搜索
+        // Ctrl/Cmd+F: 聚焦搜索框
         if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
           e.preventDefault();
-          var q = prompt('在当前对话中搜索:');
-          if (!q) return;
-          q = q.toLowerCase();
-          var msgs = document.querySelectorAll('.message-content');
-          var found = 0;
-          msgs.forEach(function (el) {
-            if (el.textContent.toLowerCase().indexOf(q) !== -1) {
-              el.style.background = 'var(--accent-bg)';
-              found++;
-              setTimeout(function () { el.style.background = ''; }, 2000);
-            }
-          });
-          var App = window.ZYN3.App;
-          if (App && App.showToast) App.showToast('找到 ' + found + ' 处匹配', found > 0 ? 'success' : 'info');
+          var searchBar = document.querySelector('.search-bar-input');
+          if (searchBar) searchBar.focus();
         }
 
         // Escape: 关闭设置 / 停止生成

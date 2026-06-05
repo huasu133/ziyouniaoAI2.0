@@ -59,6 +59,28 @@
       this.historyIndex = -1;
       // 渲染记忆面板
       this._renderMemoryPanel();
+      // 加载 LESSONS.md 经验教训
+      this._loadLessonsPanel();
+    },
+
+    /**
+     * 加载 LESSONS.md 到面板
+     */
+    _loadLessonsPanel: function () {
+      if (window.electronAPI && window.electronAPI.getLessons) {
+        window.electronAPI.getLessons().then(function (lessons) {
+          var panel = document.getElementById('lessons-panel');
+          if (!panel) return;
+          if (lessons && lessons.length) {
+            panel.textContent = typeof lessons === 'string' ? lessons : JSON.stringify(lessons, null, 2);
+          } else {
+            panel.innerHTML = '<div style="color:var(--t3);font-size:12px;">暂无经验教训</div>';
+          }
+        }).catch(function () {
+          var panel = document.getElementById('lessons-panel');
+          if (panel) panel.innerHTML = '<div style="color:var(--t3);font-size:12px;">暂无经验教训</div>';
+        });
+      }
     },
 
     /**
