@@ -676,16 +676,21 @@
       var tabId = this.currentTabId;
       var prompt = '';
       for (var i = 0; i < this.messages.length; i++) {
-        prompt += this.messages[i].role + ': ' + (this.messages[i].content || '').substring(0, 200) + '\n';
+        prompt += this.messages[i].role + ': ' + (this.messages[i].content || '').substring(0, 300) + '\n';
       }
-      prompt += '\n请分别回复以下两项（用 --- 分隔）：\n1. 给这个对话起一个 5 字以内的标题\n2. 用2-3句话概述本次对话';
+      prompt += '\n请分别回复以下两项（用 --- 分隔）：\n' +
+        '1. 给这个对话起一个 5 字以内的标题\n' +
+        '2. 用以下格式总结本次对话：\n' +
+        '## 总结\n3-5句话概述\n' +
+        '## 分析\n列出关键决策和变化\n' +
+        '## 推荐\n2-3条下一步行动';
       var modelSelect = document.querySelector('#model-select');
       var model = modelSelect ? modelSelect.value : 'deepseek-chat';
       var self = this;
       fetch('http://127.0.0.1:18789/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 300, stream: false }),
+        body: JSON.stringify({ model: model, messages: [{ role: 'user', content: prompt }], max_tokens: 500, stream: false }),
         signal: AbortSignal.timeout(30000),
       })
         .then(function (res) { return res.json(); })
@@ -697,14 +702,24 @@
             var Tabs = window.ZYN3.Tabs;
             if (Tabs) Tabs.renameTab(tabId, title);
           }
-          var summary = (parts[1] || result).trim().slice(0, 100);
+          // 第二部分：结构化摘要（渲染到右侧面板）
+          var summary = (parts[1] || '').trim();
           if (summary) {
+            var html = summary
+              .replace(/## (.+)/g, '<h3>$1</h3>')
+              .replace(/- (.+)/g, '<li>$1</li>');
+            // 渲染到记忆面板
+            var panel = document.getElementById('memory-panel');
+            if (panel) panel.innerHTML = html;
+            // 保存记忆
             var Storage = window.ZYN3.Storage;
             var memories = Storage.getMemories();
-            memories.push({ key: title || '对话', value: summary, time: Date.now() });
+            memories.push({ key: title || '对话', value: summary.slice(0, 100), time: Date.now() });
             if (memories.length > 50) memories = memories.slice(-50);
             Storage.setMemories(memories);
-            self._renderMemoryPanel();
+            // 追加到历史日志
+            var log = '\n## ' + new Date().toISOString().slice(0, 16).replace('T', ' ') + '\n' + summary + '\n---\n';
+            Storage.set('summaries', (Storage.get('summaries') || '') + log);
           }
         })
         .catch(function () { /* 静默失败 */ });
