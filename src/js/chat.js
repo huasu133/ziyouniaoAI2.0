@@ -306,6 +306,14 @@
           });
         }
 
+        // 主对话也注入工具调用指令（主对话和 V4）
+        if (!resolvedAgentId || resolvedAgentId === 'v4') {
+          apiMessages.unshift({
+            role: 'system',
+            content: '你可以调用以下工具来辅助回答：\n- [调用: search 关键词] — 搜索网络\n- [调用: fetch URL] — 抓取网页内容\n- [调用: healthcheck] — 检查网关状态\n- [调用: timestamp] — 获取当前时间\n直接在回复中插入 [调用: 工具名 参数] 即可，我会自动执行。'
+          });
+        }
+
         self._abortController = API.sendMessage(apiMessages, {
           model: model,
           agentId: resolvedAgentId || undefined,
