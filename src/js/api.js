@@ -25,6 +25,9 @@
       var abortController = new AbortController();
       var signal = abortController.signal;
 
+      // P0-9: 标记是否收到 reasoning_content（用于区分原生推理与文本嵌入回退）
+      var _hasReasoning = false;
+
       var body = JSON.stringify({
         model: model,
         messages: messages,
@@ -100,6 +103,7 @@
                     var reasoning = delta.reasoning_content;
                     var content = delta.content;
                     if (reasoning) {
+                      _hasReasoning = true;
                       fullText += reasoning;
                       onReasoning(reasoning);
                     }

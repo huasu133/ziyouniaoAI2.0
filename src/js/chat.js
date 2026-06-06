@@ -74,6 +74,7 @@
       this.isGenerating = false;
       this._calledExperts = {};
       this._abortController = null;
+      this._toolCallCount = 0;
       this.suppressAutoScroll = false;
       // 从 Storage 加载输入历史
       this.inputHistory = Storage.getInputHistory();
@@ -297,6 +298,14 @@
           }
         }
 
+        // P0-9: R1 推理模型 — 强制文本格式输出思考链 + 工具调用能力
+        if (resolvedAgentId === 'r1') {
+          apiMessages.unshift({
+            role: 'system',
+            content: '你是一个深度推理模型。在给出最终答案前，请先用 **思考过程** 和 **最终答案** 两个标题分隔你的推理和最终回答。\n\n格式：\n**思考过程**\n（你的推理步骤）\n\n**最终答案**\n（你的最终回复）\n\n你可以调用以下工具来辅助回答：\n- [调用: search 关键词] — 搜索网络\n- [调用: fetch URL] — 抓取网页内容\n- [调用: healthcheck] — 检查网关状态\n- [调用: timestamp] — 获取当前时间\n- [调用: expert 专家ID 问题] — 调用其他专家\n当需要查资料、确认信息、获取数据时，请使用工具。'
+          });
+        }
+
         self._abortController = API.sendMessage(apiMessages, {
           model: model,
           agentId: resolvedAgentId || undefined,
@@ -311,30 +320,68 @@
           onDone: function (fullText) {
             // P0-4: generationId 竞态检查
             if (genId !== _generationId) return;
+
+            // P0-9: 文本嵌入思考链检测 — 当 OpenClaw 网关不转发 reasoning_content 时，
+            // 通过 R1 输出的 **最终答案** 分隔符拆分为推理文本和最终答案
+            var _textReasoningHandled = false;
+            if (fullText.indexOf('**最终答案**') !== -1) {
+              _textReasoningHandled = true;
+              var parts = fullText.split('**最终答案**');
+              var reasoningText = parts[0].replace(/\*\*思考过程\*\*/g, '').trim();
+              var finalAnswer = parts.slice(1).join('**最终答案**').trim();
+
+              // 填充思考链面板
+              if (reasoningText) {
+                self._appendReasoning(reasoningText);
+                // 标题改为已思考完成
+                var container = document.getElementById('messages-container');
+                if (container) {
+                  var lastMsgEl = container.querySelector('.message:last-child');
+                  if (lastMsgEl) {
+                    var header = lastMsgEl.querySelector('.reasoning-header');
+                    if (header) header.textContent = '\u{1F4AD} 已思考完成';
+                  }
+                }
+              }
+
+              // 更新消息内容为最终答案（而非包含思考链的完整文本）
+              var lastMsg = self.messages[self.messages.length - 1];
+              if (lastMsg && lastMsg._placeholder) {
+                lastMsg.content = finalAnswer;
+                delete lastMsg._placeholder;
+              }
+              self.renderMessages();
+              self.scrollToBottom();
+            }
+
             self.isGenerating = false;
             self._abortController = null;
 
-            // 推理完成 → 更新思考链标题
-            (function () {
-              try {
-                var container = document.getElementById('messages-container');
-                if (container) {
-                  var lastMsg = container.querySelector('.message:last-child');
-                  if (lastMsg) {
-                    var reasoningHeader = lastMsg.querySelector('.reasoning-header');
-                    if (reasoningHeader) {
-                      reasoningHeader.textContent = '\u{1F4AD} 已思考完成';
+            // 推理完成 → 更新思考链标题（仅在未通过文本嵌入处理时）
+            if (!_textReasoningHandled) {
+              (function () {
+                try {
+                  var container = document.getElementById('messages-container');
+                  if (container) {
+                    var lastMsg = container.querySelector('.message:last-child');
+                    if (lastMsg) {
+                      var reasoningHeader = lastMsg.querySelector('.reasoning-header');
+                      if (reasoningHeader) {
+                        reasoningHeader.textContent = '\u{1F4AD} 已思考完成';
+                      }
                     }
                   }
-                }
-              } catch (e) {}
-            })();
+                } catch (e) {}
+              })();
+            }
 
-            // 移除占位标记
-            var lastMsg = self.messages[self.messages.length - 1];
-            if (lastMsg && lastMsg._placeholder) {
-              lastMsg.content = fullText;
-              delete lastMsg._placeholder;
+            // 移除占位标记（仅在未通过文本推理处理时）
+            if (!_textReasoningHandled) {
+              var lastMsg = self.messages[self.messages.length - 1];
+              if (lastMsg && lastMsg._placeholder) {
+                lastMsg.content = fullText;
+                delete lastMsg._placeholder;
+              }
             }
 
             // 清除流式防抖定时器
@@ -511,6 +558,12 @@
                 console.warn('[Chat] Expert call failed:', e);
               }
             })();
+
+            // ─── 工具调用循环（ReAct 模式）──────────────────────────
+            // 仅对主对话和 R1 启用工具调用
+            if (!resolvedAgentId || resolvedAgentId === 'r1') {
+              self._processToolLoop(fullText, apiMessages, model, resolvedAgentId, genId);
+            }
           },
           onError: function (err) {
             // P0-4: generationId 竞态检查
@@ -1125,6 +1178,7 @@
       this.messages = [];
       this.isGenerating = false;
       this._calledExperts = {}; // 切换对话时重置专家调用状态
+      this._toolCallCount = 0; // 重置工具调用计数
       if (this._abortController) {
         this._abortController.abort();
         this._abortController = null;
@@ -1208,6 +1262,92 @@
       if (lessons.length > 100) lessons = lessons.slice(-100);
       Storage.setLessons(lessons);
       this._loadLessonsPanel();
+    },
+
+    /**
+     * 工具调用循环处理（ReAct 模式）
+     * 在 onDone 中调用，可递归（最多 5 次）
+     * @param {string} fullText - AI 回复全文
+     * @param {Array} apiMessages - API 消息列表（会被追加工具结果）
+     * @param {string} model - 当前模型
+     * @param {string} resolvedAgentId - 当前 agent ID
+     * @param {number} genId - 生成 ID（用于竞态检查）
+     */
+    _processToolLoop: function (fullText, apiMessages, model, resolvedAgentId, genId) {
+      var self = this;
+      var ToolRunner = window.ZYN3.ToolRunner;
+      if (!ToolRunner) return;
+      if (self._toolCallCount >= 5) { self._toolCallCount = 0; return; }
+
+      var toolCount = self._toolCallCount;
+      ToolRunner.runToolLoop(fullText, apiMessages, model, toolCount)
+        .then(function (hasTools) {
+          if (!hasTools) { self._toolCallCount = 0; return; }
+
+          self._toolCallCount = toolCount + 1;
+          var settings = Storage.getSettings();
+
+          // 添加助手占位消息（新生成的内容）
+          self.addMessage('assistant', '<span class="typing-indicator"><span></span><span></span><span></span></span>', {
+            isPlaceholder: true,
+          });
+          self.isGenerating = true;
+
+          self._abortController = API.sendMessage(apiMessages, {
+            model: model,
+            agentId: resolvedAgentId || undefined,
+            temperature: settings.temperature || 0.7,
+            maxTokens: settings.maxTokens || 4096,
+            onMessage: function (delta) {
+              self._appendToLastMessage(delta);
+            },
+            onReasoning: function (text) {
+              self._appendReasoning(text);
+            },
+            onDone: function (innerFullText) {
+              if (genId !== _generationId) return;
+              self.isGenerating = false;
+              self._abortController = null;
+
+              // 移除占位标记
+              var m = self.messages[self.messages.length - 1];
+              if (m && m._placeholder) {
+                m.content = innerFullText;
+                delete m._placeholder;
+              }
+              if (self._saveTimer) { clearTimeout(self._saveTimer); self._saveTimer = null; }
+              self._saveCurrentMessages();
+              var sBtn = document.getElementById('btn-send');
+              var stpBtn = document.getElementById('btn-stop');
+              if (sBtn) sBtn.classList.remove('hidden');
+              if (stpBtn) stpBtn.classList.add('hidden');
+              self.scrollToBottom();
+              self._reflectLesson('对话', innerFullText.substring(0, 50));
+              self._generateSummaryAndName();
+
+              // 递归检查更多工具调用
+              self._processToolLoop(innerFullText, apiMessages, model, resolvedAgentId, genId);
+            },
+            onError: function (err) {
+              if (genId !== _generationId) return;
+              self.isGenerating = false;
+              self._abortController = null;
+              self._toolCallCount = 0;
+              if (self._saveTimer) { clearTimeout(self._saveTimer); self._saveTimer = null; }
+              var m = self.messages[self.messages.length - 1];
+              if (m && m._placeholder) self.messages.pop();
+              self.addMessage('assistant', '**错误**: ' + Utils.escapeHTML(err.message || '请求失败'));
+              var sBtn = document.getElementById('btn-send');
+              var stpBtn = document.getElementById('btn-stop');
+              if (sBtn) sBtn.classList.remove('hidden');
+              if (stpBtn) stpBtn.classList.add('hidden');
+            },
+          });
+        })
+        .catch(function (e) {
+          console.warn('[Chat] _processToolLoop error:', e);
+          self._toolCallCount = 0;
+        });
     },
 
     /**
