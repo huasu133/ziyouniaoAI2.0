@@ -4,7 +4,7 @@
 
 set -e
 
-EXPERTS_SRC="/Users/songmoxin/WorkBuddy/2026-06-05-11-48-17/ziyouniao-v4/experts"
+EXPERTS_SRC="$(cd "$(dirname "$0")" && pwd)/src/experts"
 WORKSPACE_BASE="$HOME/.openclaw"
 
 echo "=== 部署 10 个 Agent ==="
