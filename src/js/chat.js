@@ -185,6 +185,32 @@
       // 添加用户消息
       this.addMessage('user', text);
 
+      // ─── 自动搜索检测 ──────────────────────────────
+      // 当用户消息包含搜索意图时，自动执行搜索并将结果注入上下文
+      (function () {
+        try {
+          var searchMatch = text.match(/^(?:搜索|帮我搜索|查一下|搜一下|查找|search)\s*(.*)/i);
+          if (searchMatch && searchMatch[1].trim()) {
+            var query = searchMatch[1].trim();
+            var Search = window.ZYN3.Search;
+            if (Search && Search.searchWeb) {
+              // 异步执行搜索
+              Search.searchWeb(query).then(function (result) {
+                if (result && result.results && result.results.length > 0) {
+                  var searchResults = '用户要求搜索"' + query + '"，搜索结果如下：\n';
+                  for (var si = 0; si < Math.min(result.results.length, 5); si++) {
+                    var r = result.results[si];
+                    searchResults += (si + 1) + '. ' + (r.title || '无标题') + '\n   ' + (r.snippet || r.content || '') + '\n   来源: ' + (r.url || '') + '\n\n';
+                  }
+                  // 存储搜索结果，待后续注入 API 消息
+                  self._pendingSearchResults = { query: query, results: searchResults };
+                }
+              }).catch(function () {});
+            }
+          }
+        } catch (e) {}
+      })();
+
       // 清空输入
       // P1: 从 Storage 刷新输入历史，避免双写
       this.inputHistory = Storage.getInputHistory();
@@ -310,8 +336,17 @@
         if (!resolvedAgentId || resolvedAgentId === 'v4') {
           apiMessages.unshift({
             role: 'system',
-            content: '你可以调用以下工具来辅助回答：\n- [调用: search 关键词] — 搜索网络\n- [调用: fetch URL] — 抓取网页内容\n- [调用: healthcheck] — 检查网关状态\n- [调用: timestamp] — 获取当前时间\n直接在回复中插入 [调用: 工具名 参数] 即可，我会自动执行。'
+            content: '你可以调用以下工具来辅助回答：\n- [调用: search 关键词] — 搜索网络\n- [调用: fetch URL] — 抓取网页内容\n- [调用: healthcheck] — 检查网关状态\n- [调用: timestamp] — 获取当前时间\n\n使用示例：当用户要求搜索时，回复末尾直接加上 [调用: search 用户想搜的内容]，我会自动执行。\n例如：用户说"搜索今天的新闻"，你回复分析后加上 [调用: search 今天新闻] 即可。'
           });
+        }
+
+        // ─── 注入自动搜索结��� ────────────────────────
+        if (self._pendingSearchResults) {
+          apiMessages.push({
+            role: 'system',
+            content: self._pendingSearchResults.results + '\n请根据以上搜索结果回答用户的问题。如果搜索结果不相关，请告知用户。'
+          });
+          self._pendingSearchResults = null;
         }
 
         self._abortController = API.sendMessage(apiMessages, {
