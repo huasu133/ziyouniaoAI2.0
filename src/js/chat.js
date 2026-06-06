@@ -246,8 +246,12 @@
       }
 
       // P0-7: AbortController 来自 api.js
+      var agentSelect = document.getElementById('agent-select');
+      var agentId = agentSelect ? agentSelect.value : '';
+
       this._abortController = API.sendMessage(apiMessages, {
         model: model,
+        agentId: agentId || undefined,
         temperature: settings.temperature || 0.7,
         maxTokens: settings.maxTokens || 4096,
         onMessage: function (delta) {

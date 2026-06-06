@@ -13,8 +13,8 @@
     BASE_URL: API_BASE,
     AUTH_TOKEN: AUTH_TOKEN,
     sendMessage: function (messages, options) {
-      // OpenClaw 网关只认 openclaw 模型名，前端选的模型由网关内部路由
-      var model = 'openclaw';
+      // OpenClaw 网关路由：有 agentId 则路由到对应 Agent，否则用默认模型
+      var model = options.agentId || 'openclaw';
       var temperature = options.temperature !== undefined ? options.temperature : 0.7;
       var maxTokens = options.maxTokens || 4096;
       var onMessage = options.onMessage || function () {};
