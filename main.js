@@ -611,7 +611,15 @@ ipcMain.handle('open-data-folder', async () => {
 
 // 读取专家 SOUL 文件（注入人格）
 ipcMain.handle('read-expert-file', async (_event, fileName) => {
+  // 防路径穿越：只允许字母数字和.soul.md
+  if (!/^[a-zA-Z0-9_-]+\.soul\.md$/.test(fileName)) {
+    return { success: false, error: 'Invalid file name' };
+  }
   const filePath = path.join(__dirname, 'src', 'experts', fileName);
+  // 确保在预期目录内
+  if (!filePath.startsWith(path.join(__dirname, 'src', 'experts'))) {
+    return { success: false, error: 'Access denied' };
+  }
   try {
     const content = fs.readFileSync(filePath, 'utf8');
     return { success: true, content };
@@ -696,8 +704,8 @@ app.whenReady().then(async () => {
         if (!err2) { /* 无变更，跳过 */ return; }
         execFile('git', ['-C', dir, 'commit', '-m', 'snapshot: ' + ts], { timeout: 30000, env: gitEnv }, function (err3) {
           if (err3) { console.error('[快照] commit 失败:', err3.message); return; }
-          // 如有 remote 则 push，否则仅本地 commit
-          execFile('git', ['-C', dir, 'push'], { timeout: 30000, env: gitEnv }, function () { /* 静默 */ });
+          console.log('[快照] commit 成功, 跳过 push');
+
         });
       });
     });
