@@ -78,6 +78,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
 
   /**
+   * 读取专家 SOUL 文件
+   * @param {string} fileName - 文件名（如 architect.soul.md）
+   * @returns {Promise<{success: boolean, content?: string, error?: string}>}
+   */
+  readExpertFile: (fileName) => ipcRenderer.invoke('read-expert-file', fileName),
+
+  /**
    * 通知主进程保存完成
    */
   saveAllComplete: () => {

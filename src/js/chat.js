@@ -9,6 +9,22 @@
   var API = window.ZYN3.API;
   var Storage = window.ZYN3.Storage;
 
+  // 同步加载专家 SOUL 人格文件
+  function loadExpertPrompt(agentId) {
+    // Electron 环境：通过 IPC 同步读取（通过主进程）
+    if (window.electronAPI && window.electronAPI.readExpertFile) {
+      // 由于 sandbox:true，不能用同步 XHR；用预加载标记作同步 fallback
+      // 这里用 XMLHttpRequest 同步请求本地文件
+      try {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'experts/' + agentId + '.soul.md', false);
+        xhr.send();
+        if (xhr.status === 200) return xhr.responseText;
+      } catch (e) {}
+    }
+    return '';
+  }
+
   // P0-4: generationId 用于快速 send→stop→send 竞态控制
   var _generationId = 0;
 
@@ -248,6 +264,14 @@
       // P0-7: AbortController 来自 api.js
       var agentSelect = document.getElementById('agent-select');
       var agentId = agentSelect ? agentSelect.value : '';
+
+      // 专家 system prompt 注入 — 同步加载 SOUL 人格
+      if (agentId) {
+        var expertPrompt = loadExpertPrompt(agentId);
+        if (expertPrompt) {
+          apiMessages.unshift({ role: 'system', content: expertPrompt });
+        }
+      }
 
       this._abortController = API.sendMessage(apiMessages, {
         model: model,

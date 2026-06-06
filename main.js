@@ -609,6 +609,17 @@ ipcMain.handle('open-data-folder', async () => {
   }
 });
 
+// 读取专家 SOUL 文件（注入人格）
+ipcMain.handle('read-expert-file', async (_event, fileName) => {
+  const filePath = path.join(__dirname, 'src', 'experts', fileName);
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    return { success: true, content };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
 // ─── 应用生命周期 ────────────────────────────────────────────────────────
 
 app.whenReady().then(async () => {
