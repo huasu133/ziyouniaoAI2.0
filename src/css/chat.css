@@ -43,29 +43,27 @@
 
 /* ─── 跳到底部按钮 ──────────────────────────────── */
 .scroll-bottom-btn {
-  position: sticky;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
   z-index: 50;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--bg3);
   color: var(--t1);
-  font-size: 18px;
+  font-size: 20px;
   cursor: pointer;
-  box-shadow: 0 2px 8px var(--shadow);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s, transform 0.15s;
-  margin-bottom: 4px;
+  transition: opacity 0.2s, transform 0.2s;
 }
 .scroll-bottom-btn:hover {
   background: var(--hover-bg);
-  transform: translateX(-50%) scale(1.1);
+  transform: scale(1.1);
 }
 .scroll-bottom-btn.hidden {
   opacity: 0;
