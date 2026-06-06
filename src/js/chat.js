@@ -82,6 +82,26 @@
       this._renderMemoryPanel();
       // 加载 LESSONS.md 经验教训
       this._loadLessonsPanel();
+
+      // ─── 跳到底部按钮 ────────────────────────────
+      var self = this;
+      var scrollBtn = document.getElementById('btn-scroll-bottom');
+
+      // 滚动检测 — 离开底部时显示按钮
+      var container = document.getElementById('messages-container');
+      if (container && scrollBtn) {
+        container.addEventListener('scroll', function () {
+          var threshold = 200;
+          var isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+          scrollBtn.classList.toggle('hidden', isNearBottom);
+        });
+
+        // 点击跳到底部
+        scrollBtn.addEventListener('click', function () {
+          self.scrollToBottom();
+          scrollBtn.classList.add('hidden');
+        });
+      }
     },
 
     /**

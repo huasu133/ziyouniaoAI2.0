@@ -41,6 +41,37 @@
   margin-left: 8px;
 }
 
+/* ─── 跳到底部按钮 ──────────────────────────────── */
+.scroll-bottom-btn {
+  position: sticky;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg3);
+  color: var(--t1);
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s, transform 0.15s;
+  margin-bottom: 4px;
+}
+.scroll-bottom-btn:hover {
+  background: var(--hover-bg);
+  transform: translateX(-50%) scale(1.1);
+}
+.scroll-bottom-btn.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ─── 历史提问弹出层 ────────────────────────────────── */
 .history-popup {
   position: absolute;
