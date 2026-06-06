@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage, globalShortcut, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage, globalShortcut, shell, safeStorage } = require('electron');
 const path = require('path');
 const os = require('os');
 const { spawn, execFile } = require('child_process');
@@ -52,10 +52,11 @@ let _gitSnapshotTimer = null;
 // 中定义。实际策略:
 //   default-src 'self'; script-src 'self' 'unsafe-inline';
 //   style-src 'self' 'unsafe-inline';
-//   connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev;
+//   connect-src http://127.0.0.1:18789 https://www.claw-search.com;
 //   img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';
-// 说明: connect-src 包含搜索域名（Claw/Tavily/Serper），
-//       搜索功能需要这些外部连接；unsafe-inline 因架构约束保留。
+// 说明: Tavily/Serper 域名已从 connect-src 移除（P1-1），搜索请求通过 IPC 代理。
+//       Claw 免费搜索仍保留在 connect-src 因为其直接通过浏览器 fetch 调用。
+//       unsafe-inline 因架构约束保留。
 // 若需进一步放宽，请修改 index.html 中的 meta 标签。
 
 // ─── 辅函数 ──────────────────────────────────────────────────────────────
@@ -482,6 +483,118 @@ ipcMain.handle('fetch-url', async (_event, url) => {
       resolve({ status: 0, data: null, error: 'Request timeout' });
     });
   });
+});
+
+// ─── P0-1: 搜索 API Key 加密存储 ──────────────────────────────────────
+const ENCRYPTED_KEYS_FILE = 'zyn3-encrypted-keys.bin';
+
+ipcMain.handle('save-search-key', async (_event, name, value) => {
+  try {
+    const filePath = path.join(app.getPath('userData'), ENCRYPTED_KEYS_FILE);
+    let keys = {};
+    // 读取现有加密数据
+    if (fs.existsSync(filePath)) {
+      const encrypted = fs.readFileSync(filePath);
+      if (safeStorage.isEncryptionAvailable()) {
+        const decrypted = safeStorage.decryptString(encrypted);
+        keys = JSON.parse(decrypted);
+      } else {
+        const decrypted = encrypted.toString('utf8');
+        keys = JSON.parse(decrypted);
+      }
+    }
+    // 更新 key
+    keys[name] = value;
+    // 写回加密
+    const data = JSON.stringify(keys);
+    if (safeStorage.isEncryptionAvailable()) {
+      fs.writeFileSync(filePath, safeStorage.encryptString(data));
+    } else {
+      fs.writeFileSync(filePath, data, 'utf8');
+    }
+    return { success: true };
+  } catch (err) {
+    console.error('[main] save-search-key failed:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('get-search-keys', async () => {
+  try {
+    const filePath = path.join(app.getPath('userData'), ENCRYPTED_KEYS_FILE);
+    if (!fs.existsSync(filePath)) return {};
+    const encrypted = fs.readFileSync(filePath);
+    let decrypted;
+    if (safeStorage.isEncryptionAvailable()) {
+      decrypted = safeStorage.decryptString(encrypted);
+    } else {
+      decrypted = encrypted.toString('utf8');
+    }
+    return JSON.parse(decrypted);
+  } catch (err) {
+    console.error('[main] get-search-keys failed:', err.message);
+    return {};
+  }
+});
+
+// ─── P1-5: 搜索 API 走 IPC 代理 ──────────────────────────────────────
+ipcMain.handle('search-web', async (_event, engine, query, apiKey) => {
+  try {
+    let url, options;
+    if (engine === 'tavily') {
+      url = 'https://api.tavily.com/search';
+      options = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, query, max_results: 5 }),
+      };
+    } else if (engine === 'serper') {
+      url = 'https://google.serper.dev/search';
+      options = {
+        method: 'POST',
+        headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: query }),
+      };
+    } else {
+      return { error: 'Unknown engine: ' + engine };
+    }
+
+    return new Promise((resolve) => {
+      const lib = url.startsWith('https:') ? https : http;
+      const urlObj = new URL(url);
+      const req = lib.request(urlObj, options, function (res) {
+        let data = '';
+        res.on('data', function (chunk) {
+          data += chunk;
+          if (data.length >= 1_000_000) {
+            req.destroy();
+            resolve({ error: 'Response too large' });
+          }
+        });
+        res.on('end', function () {
+          try {
+            resolve(JSON.parse(data));
+          } catch (_) {
+            resolve({ error: 'Invalid JSON response' });
+          }
+        });
+      });
+      req.on('error', function (err) {
+        resolve({ error: err.message });
+      });
+      req.setTimeout(10000, function () {
+        req.destroy();
+        resolve({ error: 'Request timeout' });
+      });
+      // 写入 body（POST 请求）
+      if (options.body) {
+        req.write(options.body);
+      }
+      req.end();
+    });
+  } catch (err) {
+    return { error: err.message };
+  }
 });
 
 // P2: 打开数据目录（用于"打开文件夹"功能）

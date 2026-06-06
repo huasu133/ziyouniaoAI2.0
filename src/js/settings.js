@@ -89,12 +89,29 @@
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) styleSelect.value = settings.style || '';
 
-      // 加载搜索 API Key（通过 Storage 接口，避免双重命名空间）
-      var searchKeys = Storage.getSearchKeys();
-      var tavilyKeyEl = document.getElementById('setting-tavily-key');
-      var serperKeyEl = document.getElementById('setting-serper-key');
-      if (tavilyKeyEl) tavilyKeyEl.value = searchKeys.tavily ?? '';
-      if (serperKeyEl) serperKeyEl.value = searchKeys.serper ?? '';
+      // 加载搜索 API Key（优先通过 IPC 读取加密存储，回退到 localStorage）
+      var self = this;
+      if (window.electronAPI && window.electronAPI.getSearchKeys) {
+        window.electronAPI.getSearchKeys().then(function (searchKeys) {
+          var tavilyKeyEl = document.getElementById('setting-tavily-key');
+          var serperKeyEl = document.getElementById('setting-serper-key');
+          if (tavilyKeyEl) tavilyKeyEl.value = searchKeys.tavily ?? '';
+          if (serperKeyEl) serperKeyEl.value = searchKeys.serper ?? '';
+        }).catch(function () {
+          // fallback to localStorage
+          var searchKeys = Storage.getSearchKeys();
+          var tavilyKeyEl = document.getElementById('setting-tavily-key');
+          var serperKeyEl = document.getElementById('setting-serper-key');
+          if (tavilyKeyEl) tavilyKeyEl.value = searchKeys.tavily ?? '';
+          if (serperKeyEl) serperKeyEl.value = searchKeys.serper ?? '';
+        });
+      } else {
+        var searchKeys = Storage.getSearchKeys();
+        var tavilyKeyEl = document.getElementById('setting-tavily-key');
+        var serperKeyEl = document.getElementById('setting-serper-key');
+        if (tavilyKeyEl) tavilyKeyEl.value = searchKeys.tavily ?? '';
+        if (serperKeyEl) serperKeyEl.value = searchKeys.serper ?? '';
+      }
 
       // P1: 加载后立即应用主题/字体设置
       this._applySettings(settings);
@@ -130,13 +147,19 @@
       var styleSelect = document.getElementById('style-select');
       if (styleSelect) settings.style = styleSelect.value;
 
-      // 保存搜索 API Key（通过 Storage 接口，避免双重命名空间）
+      // 保存搜索 API Key（优先通过 IPC 加密存储，回退到 localStorage）
       var tavilyKeyEl = document.getElementById('setting-tavily-key');
       var serperKeyEl = document.getElementById('setting-serper-key');
-      Storage.setSearchKeys({
+      var newKeys = {
         tavily: tavilyKeyEl ? tavilyKeyEl.value.trim() : '',
         serper: serperKeyEl ? serperKeyEl.value.trim() : '',
-      });
+      };
+      if (window.electronAPI && window.electronAPI.saveSearchKey) {
+        Object.keys(newKeys).forEach(function (name) {
+          window.electronAPI.saveSearchKey(name, newKeys[name]);
+        });
+      }
+      Storage.setSearchKeys(newKeys);
 
       Storage.setSettings(settings);
 

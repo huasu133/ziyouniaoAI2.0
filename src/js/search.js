@@ -14,11 +14,13 @@
   var cacheKeys = [];
 
   /**
-   * 从 Storage 接口读取搜索 API Key（统一命名空间，避免双前缀）
+   * 从 Storage 接口或 IPC 读取搜索 API Key
+   * P0-1: 优先通过 IPC 读取加密存储
    * @returns {{ tavily?: string, serper?: string }}
    */
   function _getKeys() {
     try {
+      // IPC 加密存储优先（异步，但缓存一次以便后续同步调用）
       var Storage = window.ZYN3 && window.ZYN3.Storage;
       return Storage ? Storage.getSearchKeys() : {};
     } catch (_) {
@@ -26,14 +28,36 @@
     }
   }
 
+  // P0-1: 异步预加载加密 Key 到 Storage（以便 _getKeys 同步读取）
+  if (window.electronAPI && window.electronAPI.getSearchKeys) {
+    window.electronAPI.getSearchKeys().then(function (encryptedKeys) {
+      var Storage = window.ZYN3 && window.ZYN3.Storage;
+      if (Storage) {
+        Storage.setSearchKeys(encryptedKeys);
+      }
+    }).catch(function () {
+      // 静默降级到 localStorage
+    });
+  }
+
   var Search = {
     /**
      * Tavily Search API（需要配置 Key）
+     * P1-5: 优先通过 IPC 代理搜索，避免浏览器直接发送 API Key
      */
     _tavilySearch: async function (query) {
       var keys = _getKeys();
       if (!keys.tavily) return [];
       try {
+        // 优先使用 IPC 代理
+        if (window.electronAPI && window.electronAPI.searchWeb) {
+          var result = await window.electronAPI.searchWeb('tavily', query, keys.tavily);
+          if (result.error || !result.results) return [];
+          return result.results.slice(0, 5).map(function (r) {
+            return { title: r.title, url: r.url, snippet: r.content || '' };
+          });
+        }
+        // 回退到直接 fetch
         var res = await fetch('https://api.tavily.com/search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -53,11 +77,21 @@
 
     /**
      * Serper API fallback（需要配置 Key）
+     * P1-5: 优先通过 IPC 代理搜索
      */
     _serperSearch: async function (query) {
       var keys = _getKeys();
       if (!keys.serper) return [];
       try {
+        // 优先使用 IPC 代理
+        if (window.electronAPI && window.electronAPI.searchWeb) {
+          var result = await window.electronAPI.searchWeb('serper', query, keys.serper);
+          if (result.error || !result.organic) return [];
+          return result.organic.slice(0, 5).map(function (r) {
+            return { title: r.title, url: r.link, snippet: r.snippet || '' };
+          });
+        }
+        // 回退到直接 fetch
         var res = await fetch('https://google.serper.dev/search', {
           method: 'POST',
           headers: { 'X-API-KEY': keys.serper, 'Content-Type': 'application/json' },

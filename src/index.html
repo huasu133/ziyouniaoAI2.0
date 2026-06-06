@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- CSP: unsafe-inline 保留于 script-src 和 style-src 是架构约束（单用户本地应用） -->
-  <!-- connect-src 包含搜索域名（Claw/Tavily/Serper），搜索功能需要这些外部连接 -->
+  <!-- connect-src 保留 claw-search.com（Claw 免费搜索直接 fetch），Tavily/Serper 已通过 IPC 代理 -->
   <!-- 所有外部域名访问通过IPC代理，connect-src仅允许本地网关 -->
   <!-- img-src data: 用于图片粘贴 base64 场景 -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; connect-src http://127.0.0.1:18789 https://www.claw-search.com https://api.tavily.com https://google.serper.dev; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src http://127.0.0.1:18789 https://www.claw-search.com; img-src 'self' data:; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self';">
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta name="referrer" content="no-referrer">
   <title>自由鸟AI</title>
@@ -20,33 +20,7 @@
   <link rel="stylesheet" href="css/components.css">
   <!-- Prism.js 代码高亮 -->
   <link rel="stylesheet" href="lib/prism-okaidia.min.css">
-  <script>
-    // Prism.js CDN 回退：如果本地文件加载失败，从 CDN 加载
-    (function() {
-      var CDN_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0';
-      function loadFallback(src, isCss) {
-        var el;
-        if (isCss) {
-          el = document.createElement('link');
-          el.rel = 'stylesheet';
-          el.href = src;
-        } else {
-          el = document.createElement('script');
-          el.src = src;
-          el.defer = true;
-        }
-        document.body.appendChild(el);
-      }
-      // 本地加载失败检测 — CSS 用 onerror，JS 用重试
-      var cssLink = document.querySelector('link[href="lib/prism-okaidia.min.css"]');
-      if (cssLink) {
-        cssLink.onerror = function() {
-          console.warn('[Prism] Local CSS failed, falling back to CDN');
-          loadFallback(CDN_BASE + '/themes/prism-okaidia.min.css', true);
-        };
-      }
-    })();
-  </script>
+  <!-- P1-6: 不再加载 CDN 回退，本地加载失败就禁用代码高亮 -->
 </head>
 <body>
   <!-- ─── 顶栏 ─────────────────────────────────────────── -->
@@ -256,52 +230,18 @@
 
   <!-- ─── JS ──────────────────────────────────────────── -->
   <!-- Prism.js 代码高亮（必须在应用脚本之前加载） -->
+  <!-- P1-6: 只加载本地文件，不再加载 CDN 回退 -->
   <script src="lib/prism.min.js"></script>
   <script>
-    // Prism.js JS 组件 CDN 回退
+    // Prism.js 语言组件 — 只加载本地文件，加载失败则禁用代码高亮
     (function() {
-      if (typeof Prism === 'undefined') {
-        console.warn('[Prism] Local prism.min.js failed, loading from CDN');
+      if (typeof Prism === 'undefined') return;
+      var langs = ['markup', 'css', 'javascript', 'bash', 'json', 'python', 'sql', 'typescript', 'yaml'];
+      langs.forEach(function(lang) {
         var s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js';
-        s.onload = function() { loadLanguageComponents(); };
+        s.src = 'lib/prism-' + lang + '.min.js';
         document.body.appendChild(s);
-        return;
-      }
-      loadLanguageComponents();
-
-      function loadLanguageComponents() {
-        var langs = ['markup', 'css', 'javascript', 'bash', 'json', 'python', 'sql', 'typescript', 'yaml'];
-        var CDN_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0';
-        var loaded = 0;
-        langs.forEach(function(lang) {
-          var src = 'lib/prism-' + lang + '.min.js';
-          var s = document.createElement('script');
-          s.src = src;
-          s.onerror = function() {
-            console.warn('[Prism] Local ' + lang + ' component failed, falling back to CDN');
-            var fallback = document.createElement('script');
-            fallback.src = CDN_BASE + '/components/prism-' + lang + '.min.js';
-            fallback.onload = function() {
-              loaded++;
-              if (loaded === langs.length) onAllLoaded();
-            };
-            fallback.onerror = function() {
-              loaded++;
-              if (loaded === langs.length) onAllLoaded();
-            };
-            document.body.appendChild(fallback);
-          };
-          s.onload = function() {
-            loaded++;
-            if (loaded === langs.length) onAllLoaded();
-          };
-          document.body.appendChild(s);
-        });
-        function onAllLoaded() {
-          console.log('[Prism] All language components loaded');
-        }
-      }
+      });
     })();
   </script>
 

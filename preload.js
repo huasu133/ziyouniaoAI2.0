@@ -36,6 +36,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   fetchUrl: (url) => ipcRenderer.invoke('fetch-url', url),
 
   /**
+   * 保存搜索 API Key（加密存储）
+   * @param {string} name - key 名称（如 tavily, serper）
+   * @param {string} value - key 值
+   * @returns {Promise<{success: boolean, error?: string}>}
+   */
+  saveSearchKey: (name, value) => ipcRenderer.invoke('save-search-key', name, value),
+
+  /**
+   * 获取所有搜索 API Key
+   * @returns {Promise<{tavily?: string, serper?: string}>}
+   */
+  getSearchKeys: () => ipcRenderer.invoke('get-search-keys'),
+
+  /**
+   * 通过主进程代理搜索请求
+   * @param {string} engine - 'tavily' | 'serper'
+   * @param {string} query - 搜索查询
+   * @param {string} apiKey - 对应引擎的 API Key
+   * @returns {Promise<Object>}
+   */
+  searchWeb: (engine, query, apiKey) => ipcRenderer.invoke('search-web', engine, query, apiKey),
+
+  /**
    * 保存所有数据（响应 before-quit）
    * @returns {Function} unsubscribe - 调用以移除监听
    */
