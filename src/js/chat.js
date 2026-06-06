@@ -285,11 +285,30 @@
           onMessage: function (delta) {
             self._appendToLastMessage(delta);
           },
+          onReasoning: function (text) {
+            self._appendReasoning(text);
+          },
           onDone: function (fullText) {
             // P0-4: generationId 竞态检查
             if (genId !== _generationId) return;
             self.isGenerating = false;
             self._abortController = null;
+
+            // 推理完成 → 更新思考链标题
+            (function () {
+              try {
+                var container = document.getElementById('messages-container');
+                if (container) {
+                  var lastMsg = container.querySelector('.message:last-child');
+                  if (lastMsg) {
+                    var reasoningHeader = lastMsg.querySelector('.reasoning-header');
+                    if (reasoningHeader) {
+                      reasoningHeader.textContent = '\u{1F4AD} 已思考完成';
+                    }
+                  }
+                }
+              } catch (e) {}
+            })();
 
             // 移除占位标记
             var lastMsg = self.messages[self.messages.length - 1];
@@ -698,6 +717,36 @@
       // 流式输出时自动滚动
       if (!this.suppressAutoScroll) {
         this.scrollToBottom();
+      }
+    },
+
+    /**
+     * 追加推理思考链内容（流式）
+     * @param {string} text
+     */
+    _appendReasoning: function (text) {
+      var container = document.getElementById('messages-container');
+      if (!container) return;
+      var lastMsg = container.querySelector('.message:last-child');
+      if (!lastMsg) return;
+      var reasoningEl = lastMsg.querySelector('.message-reasoning');
+      if (!reasoningEl) {
+        reasoningEl = document.createElement('div');
+        reasoningEl.className = 'message-reasoning';
+        reasoningEl.innerHTML = '<div class="reasoning-header">\u{1F4AD} 思考中...</div><div class="reasoning-content"></div>';
+        // 点击折叠切换
+        reasoningEl.querySelector('.reasoning-header').addEventListener('click', function () {
+          reasoningEl.classList.toggle('open');
+        });
+        var contentEl = lastMsg.querySelector('.message-content');
+        if (contentEl) {
+          contentEl.parentNode.insertBefore(reasoningEl, contentEl);
+        }
+      }
+      var contentDiv = reasoningEl.querySelector('.reasoning-content');
+      if (contentDiv) {
+        contentDiv.textContent += text;
+        container.scrollTop = container.scrollHeight;
       }
     },
 

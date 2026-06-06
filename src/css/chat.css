@@ -506,3 +506,39 @@
 .msg-copy:hover { opacity: 1; }
 .msg-copy:hover { background: var(--hover-bg); }
 .message.user .msg-copy { right: auto; left: -4px; }
+
+/* ─── 推理思考链 ──────────────────────────── */
+.message-reasoning {
+  margin: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg3);
+}
+
+.reasoning-header {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+}
+.reasoning-header:hover {
+  background: var(--hover-bg);
+}
+
+.reasoning-content {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--t2);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+  display: none;
+}
+.message-reasoning.open .reasoning-content {
+  display: block;
+}

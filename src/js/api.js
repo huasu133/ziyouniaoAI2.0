@@ -20,6 +20,7 @@
       var onMessage = options.onMessage || function () {};
       var onDone = options.onDone || function () {};
       var onError = options.onError || function () {};
+      var onReasoning = options.onReasoning || function () {};
 
       var abortController = new AbortController();
       var signal = abortController.signal;
@@ -94,8 +95,19 @@
               try {
                 var data = JSON.parse(dataStr);
                 if (data.choices && data.choices.length > 0) {
-                  var content = data.choices[0].delta && data.choices[0].delta.content;
-                  if (content) { fullText += content; onMessage(content); }
+                  var delta = data.choices[0].delta;
+                  if (delta) {
+                    var reasoning = delta.reasoning_content;
+                    var content = delta.content;
+                    if (reasoning) {
+                      fullText += reasoning;
+                      onReasoning(reasoning);
+                    }
+                    if (content) {
+                      fullText += content;
+                      onMessage(content);
+                    }
+                  }
                 }
               } catch (e) { console.warn('[API] SSE parse error:', e.message); }
             }
