@@ -72,6 +72,7 @@
     init: function () {
       this.messages = [];
       this.isGenerating = false;
+      this._calledExperts = {};
       this._abortController = null;
       this.suppressAutoScroll = false;
       // 从 Storage 加载输入历史
@@ -109,6 +110,7 @@
      */
     loadMessages: function (tabId) {
       this.currentTabId = tabId;
+      this._calledExperts = {}; // 切换标签时重置专家调用状态
       // P0-6: 恢复对话时 suppressAutoScroll=true
       this.suppressAutoScroll = true;
       this.messages = Storage.getTabMessages(tabId) || [];
@@ -315,6 +317,161 @@
             self._reflectLesson('对话', text.substring(0, 50));
             // 自动汇总+命名（后台调用，不阻塞）
             self._generateSummaryAndName();
+
+            // ─── 专家协作：检测 @ 提及 ───────────────────────────
+            (function () {
+              try {
+                var expertPattern = /@(architect|fe-dev|electron|db|security|payment|devops|content|seo|data)\b/i;
+                var expertMatch = fullText.match(expertPattern);
+                if (!expertMatch) return;
+
+                var calledExpert = expertMatch[1].toLowerCase();
+
+                // 防无限递归：记录已调用的专家
+                if (!self._calledExperts) self._calledExperts = {};
+                if (self._calledExperts[calledExpert]) return;
+                self._calledExperts[calledExpert] = true;
+
+                // 创建占位消息
+                var expertPlaceholder = {
+                  id: Utils.generateId(),
+                  role: 'assistant',
+                  content: '⏳ 正在调用 @' + calledExpert + ' 专家...',
+                  _placeholder: true,
+                  _expertCall: true,
+                };
+                self.messages.push(expertPlaceholder);
+                self.renderMessages();
+                self.scrollToBottom();
+
+                // 构建上下文消息（最近若干条，排除占位）
+                var contextMessages = [];
+                for (var ci = Math.max(0, self.messages.length - 12); ci < self.messages.length; ci++) {
+                  var cm = self.messages[ci];
+                  if (!cm._placeholder && !cm._expertCall) {
+                    contextMessages.push({ role: cm.role, content: cm.content });
+                  }
+                }
+
+                var expertPrompt = '你被主AI对话中的 @"' + calledExpert + '" 标记调用。以下是当前对话的上下文，请根据你的专业知识回答原始问题。\n\n';
+
+                // 使用 XHR 手动处理 SSE 流（参考 api.js readChunk 模式）
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', (API.BASE_URL || 'http://127.0.0.1:18789') + '/v1/chat/completions', true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.setRequestHeader('Authorization', 'Bearer ' + (API.AUTH_TOKEN || 'ziyouniao-local-token-2026'));
+                xhr.setRequestHeader('Accept', 'text/event-stream');
+
+                var reqBody = JSON.stringify({
+                  model: 'openclaw/' + calledExpert,
+                  messages: [{ role: 'user', content: expertPrompt + '上下文:\n' + JSON.stringify(contextMessages.slice(-4)) }],
+                  stream: true,
+                });
+
+                var expertAccumulated = '';
+                var sseLineBuffer = '';
+                var prevResponseLen = 0;
+
+                xhr.onreadystatechange = function () {
+                  if (xhr.readyState >= XMLHttpRequest.LOADING) {
+                    var raw = xhr.responseText;
+                    if (raw.length <= prevResponseLen && xhr.readyState !== XMLHttpRequest.DONE) return;
+
+                    var newChunk = raw.substring(prevResponseLen);
+                    prevResponseLen = raw.length;
+
+                    // SSE 行缓冲解析
+                    sseLineBuffer += newChunk;
+                    var parts = sseLineBuffer.split('\n\n');
+                    sseLineBuffer = parts.pop() || '';
+
+                    for (var pi = 0; pi < parts.length; pi++) {
+                      var block = parts[pi].trim();
+                      if (!block) continue;
+                      var lines = block.split('\n');
+                      for (var li = 0; li < lines.length; li++) {
+                        var line = lines[li].trim();
+                        if (line.startsWith('data: ')) {
+                          var dataStr = line.substring(6).trim();
+                          if (dataStr === '[DONE]') continue;
+                          try {
+                            var parsed = JSON.parse(dataStr);
+                            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                              var delta = parsed.choices[0].delta.content;
+                              expertAccumulated += delta;
+                              // 流式更新占位消息
+                              var placeholderEl = document.getElementById('msg-' + expertPlaceholder.id);
+                              if (placeholderEl) {
+                                var contentEl = placeholderEl.querySelector('.message-content');
+                                if (contentEl) {
+                                  contentEl.textContent = '👤 @' + calledExpert + ' 回复：' + expertAccumulated;
+                                }
+                              }
+                            }
+                          } catch (e) {
+                            console.warn('[Chat] Expert SSE parse error:', e.message);
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  if (xhr.readyState === XMLHttpRequest.DONE) {
+                    // 处理残留的 buffer
+                    if (sseLineBuffer.trim()) {
+                      var finalLine = sseLineBuffer.trim();
+                      if (finalLine.startsWith('data: ')) {
+                        var dataStr = finalLine.substring(6).trim();
+                        if (dataStr !== '[DONE]') {
+                          try {
+                            var parsed = JSON.parse(dataStr);
+                            if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) {
+                              expertAccumulated += parsed.choices[0].delta.content;
+                            }
+                          } catch (e) {}
+                        }
+                      }
+                    }
+
+                    // 更新最终消息
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                      var lastIdx = self.messages.length - 1;
+                      if (lastIdx >= 0 && self.messages[lastIdx] && self.messages[lastIdx]._expertCall) {
+                        self.messages[lastIdx].content = '👤 @' + calledExpert + ' 回复：\n\n' + expertAccumulated;
+                        delete self.messages[lastIdx]._placeholder;
+                        delete self.messages[lastIdx]._expertCall;
+                      }
+                    } else {
+                      var lastIdx = self.messages.length - 1;
+                      if (lastIdx >= 0 && self.messages[lastIdx] && self.messages[lastIdx]._expertCall) {
+                        self.messages[lastIdx].content = '❌ 调用 @' + calledExpert + ' 专家失败 (HTTP ' + xhr.status + ')';
+                        delete self.messages[lastIdx]._placeholder;
+                        delete self.messages[lastIdx]._expertCall;
+                      }
+                    }
+                    self.renderMessages();
+                    self.scrollToBottom();
+                    self._saveCurrentMessages();
+                  }
+                };
+
+                xhr.onerror = function () {
+                  var lastIdx = self.messages.length - 1;
+                  if (lastIdx >= 0 && self.messages[lastIdx] && self.messages[lastIdx]._expertCall) {
+                    self.messages[lastIdx].content = '❌ 调用 @' + calledExpert + ' 专家失败：网络错误';
+                    delete self.messages[lastIdx]._placeholder;
+                    delete self.messages[lastIdx]._expertCall;
+                  }
+                  self.renderMessages();
+                  self.scrollToBottom();
+                  self._saveCurrentMessages();
+                };
+
+                xhr.send(reqBody);
+              } catch (e) {
+                console.warn('[Chat] Expert call failed:', e);
+              }
+            })();
           },
           onError: function (err) {
             // P0-4: generationId 竞态检查
@@ -898,6 +1055,7 @@
     clearMessages: function () {
       this.messages = [];
       this.isGenerating = false;
+      this._calledExperts = {}; // 切换对话时重置专家调用状态
       if (this._abortController) {
         this._abortController.abort();
         this._abortController = null;
