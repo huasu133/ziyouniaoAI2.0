@@ -167,6 +167,13 @@
         }
       }
       // 回退到直接 fetch（非 Electron 或降级）
+      // 校验域名白名单
+      var parsed;
+      try { parsed = new URL(url); } catch(_) { return { error: 'Invalid URL' }; }
+      var allowed = ['www.claw-search.com', 'api.tavily.com', 'google.serper.dev'];
+      if (allowed.indexOf(parsed.hostname) === -1) {
+        return { error: 'URL not allowed: ' + parsed.hostname };
+      }
       try {
         var res = await fetch(url, {
           headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Ziyouniao/3.0)' },

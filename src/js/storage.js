@@ -112,6 +112,18 @@
     },
 
     /**
+     * 获取标签页最后一条消息的预览内容（轻量级，避免读取完整消息列表）
+     * @param {string} tabId
+     * @returns {string}
+     */
+    getTabPreview: function (tabId) {
+      var messages = this.getTabMessages(tabId);
+      if (!messages || messages.length === 0) return '';
+      var lastMsg = messages[messages.length - 1];
+      return lastMsg ? (lastMsg.content || '') : '';
+    },
+
+    /**
      * 删除单个标签页数据
      * @param {string} tabId
      */
@@ -313,7 +325,7 @@
         tabs: tabs,
         tabMessages: tabData,
         settings: this.getSettings(),
-        searchKeys: this.getSearchKeys(),
+        // P0-2: 导出时不包含 searchKeys（API Key 敏感信息）
       };
     },
 
@@ -349,8 +361,10 @@
         this.setTabs(existingTabs.concat(data.tabs));
         // 导入 settings
         if (data.settings) this.setSettings(data.settings);
-        // 导入 searchKeys
-        if (data.searchKeys) this.setSearchKeys(data.searchKeys);
+        // 导入时不覆盖 searchKeys（安全原因）
+        if (data.searchKeys) {
+          console.warn('[Storage] Import skipped searchKeys for security');
+        }
         return true;
       } catch (err) {
         console.error('[Storage] Import failed:', err);

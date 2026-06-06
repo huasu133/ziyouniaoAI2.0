@@ -178,13 +178,7 @@
           shortcut: 'Cmd+C',
           action: function () {
             navigator.clipboard.writeText(selectedText).catch(function () {
-              // 降级方案
-              var ta = document.createElement('textarea');
-              ta.value = selectedText;
-              document.body.appendChild(ta);
-              ta.select();
-              document.execCommand('copy');
-              document.body.removeChild(ta);
+              // clipboard API 不可用时静默失败
             });
           },
         },

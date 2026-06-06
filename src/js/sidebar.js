@@ -74,9 +74,8 @@
       for (var i = 0; i < tabs.length; i++) {
         var tab = tabs[i];
         var isActive = tab.id === activeTab;
-        var messages = Storage.getTabMessages(tab.id) || [];
-        var lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-        var preview = lastMsg ? Utils.getMessagePreview(lastMsg.content) : '';
+        var lastMsgContent = Storage.getTabPreview(tab.id);
+        var preview = lastMsgContent ? Utils.getMessagePreview(lastMsgContent) : '';
 
         html += '' +
           '<div class="conversation-item' + (isActive ? ' active' : '') + '" data-tab-id="' + Utils.escapeHTML(tab.id) + '">' +

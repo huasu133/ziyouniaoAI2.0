@@ -93,8 +93,8 @@
       var searchKeys = Storage.getSearchKeys();
       var tavilyKeyEl = document.getElementById('setting-tavily-key');
       var serperKeyEl = document.getElementById('setting-serper-key');
-      if (tavilyKeyEl) tavilyKeyEl.value = searchKeys.tavily || '';
-      if (serperKeyEl) serperKeyEl.value = searchKeys.serper || '';
+      if (tavilyKeyEl) tavilyKeyEl.value = searchKeys.tavily ?? '';
+      if (serperKeyEl) serperKeyEl.value = searchKeys.serper ?? '';
 
       // P1: 加载后立即应用主题/字体设置
       this._applySettings(settings);
