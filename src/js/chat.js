@@ -265,80 +265,145 @@
       var agentSelect = document.getElementById('agent-select');
       var agentId = agentSelect ? agentSelect.value : '';
 
-      // 专家 system prompt 注入 — 同步加载 SOUL 人格
-      if (agentId) {
-        var expertPrompt = loadExpertPrompt(agentId);
-        if (expertPrompt) {
-          apiMessages.unshift({ role: 'system', content: expertPrompt });
+      // P0: AI 自动路由 — 将分类请求和正式发送封装为内部函数
+      function doSendWithAgent(resolvedAgentId) {
+        // 专家 system prompt 注入 — 同步加载 SOUL 人格
+        if (resolvedAgentId) {
+          var expertPrompt = loadExpertPrompt(resolvedAgentId);
+          if (expertPrompt) {
+            apiMessages.unshift({ role: 'system', content: expertPrompt });
+          }
         }
+
+        self._abortController = API.sendMessage(apiMessages, {
+          model: model,
+          agentId: resolvedAgentId || undefined,
+          temperature: settings.temperature || 0.7,
+          maxTokens: settings.maxTokens || 4096,
+          onMessage: function (delta) {
+            self._appendToLastMessage(delta);
+          },
+          onDone: function (fullText) {
+            // P0-4: generationId 竞态检查
+            if (genId !== _generationId) return;
+            self.isGenerating = false;
+            self._abortController = null;
+
+            // 移除占位标记
+            var lastMsg = self.messages[self.messages.length - 1];
+            if (lastMsg && lastMsg._placeholder) {
+              lastMsg.content = fullText;
+              delete lastMsg._placeholder;
+            }
+
+            // 清除流式防抖定时器
+            if (self._saveTimer) { clearTimeout(self._saveTimer); self._saveTimer = null; }
+
+            // 保存消息
+            self._saveCurrentMessages();
+
+            // 更新 UI
+            var sBtn = document.getElementById('btn-send');
+            var stpBtn = document.getElementById('btn-stop');
+            if (sBtn) sBtn.classList.remove('hidden');
+            if (stpBtn) stpBtn.classList.add('hidden');
+
+            // 滚动到底部
+            self.scrollToBottom();
+
+            // 自动记录教训
+            self._reflectLesson('对话', text.substring(0, 50));
+            // 自动汇总+命名（后台调用，不阻塞）
+            self._generateSummaryAndName();
+          },
+          onError: function (err) {
+            // P0-4: generationId 竞态检查
+            if (genId !== _generationId) return;
+            self.isGenerating = false;
+            self._abortController = null;
+
+            // 清除流式防抖定时器
+            if (self._saveTimer) { clearTimeout(self._saveTimer); self._saveTimer = null; }
+
+            // 移除占位消息
+            var lastMsg = self.messages[self.messages.length - 1];
+            if (lastMsg && lastMsg._placeholder) {
+              self.messages.pop();
+            }
+
+            // 显示错误消息
+            self.addMessage('assistant', '**错误**: ' + Utils.escapeHTML(err.message || '请求失败'));
+
+            // P0-8: 从 DOM 获取按钮引用
+            var sBtn = document.getElementById('btn-send');
+            var stpBtn = document.getElementById('btn-stop');
+            if (sBtn) sBtn.classList.remove('hidden');
+            if (stpBtn) stpBtn.classList.add('hidden');
+          },
+        });
       }
 
-      this._abortController = API.sendMessage(apiMessages, {
-        model: model,
-        agentId: agentId || undefined,
-        temperature: settings.temperature || 0.7,
-        maxTokens: settings.maxTokens || 4096,
-        onMessage: function (delta) {
-          self._appendToLastMessage(delta);
-        },
-        onDone: function (fullText) {
-          // P0-4: generationId 竞态检查
-          if (genId !== _generationId) return;
-          self.isGenerating = false;
-          self._abortController = null;
+      // P0: AI 自动路由 — 自动判断应该由哪个专家回答
+      if (agentId === 'auto') {
+        // 更新占位消息为自动路由提示
+        var idx = self.messages.length - 1;
+        if (idx >= 0 && self.messages[idx] && self.messages[idx]._placeholder) {
+          self.messages[idx].content = '🤖 正在分析问题，自动匹配最适合的专家...';
+        }
 
-          // 移除占位标记
-          var lastMsg = self.messages[self.messages.length - 1];
-          if (lastMsg && lastMsg._placeholder) {
-            lastMsg.content = fullText;
-            delete lastMsg._placeholder;
-          }
+        var classificationPrompt = '分析以下用户问题，从列表中选出最适合回答的专家ID。\n\n' +
+          '可选的专家ID：architect（架构师）, fe-dev（前端开发）, electron（Electron桌面端）, ' +
+          'db（数据库）, security（安全审计）, payment（支付）, devops（DevOps）, ' +
+          'content（文案）, seo（SEO）, data（数据分析）。\n\n' +
+          '用户问题：' + text + '\n\n只返回一个专家ID，不要其他文字。';
 
-          // 清除流式防抖定时器
-          if (self._saveTimer) { clearTimeout(self._saveTimer); self._saveTimer = null; }
-
-          // 保存消息
-          self._saveCurrentMessages();
-
-          // 更新 UI
-          var sBtn = document.getElementById('btn-send');
-          var stpBtn = document.getElementById('btn-stop');
-          if (sBtn) sBtn.classList.remove('hidden');
-          if (stpBtn) stpBtn.classList.add('hidden');
-
-          // 滚动到底部
-          self.scrollToBottom();
-
-          // 自动记录教训
-          self._reflectLesson('对话', text.substring(0, 50));
-          // 自动汇总+命名（后台调用，不阻塞）
-          self._generateSummaryAndName();
-        },
-        onError: function (err) {
-          // P0-4: generationId 竞态检查
-          if (genId !== _generationId) return;
-          self.isGenerating = false;
-          self._abortController = null;
-
-          // 清除流式防抖定时器
-          if (self._saveTimer) { clearTimeout(self._saveTimer); self._saveTimer = null; }
-
-          // 移除占位消息
-          var lastMsg = self.messages[self.messages.length - 1];
-          if (lastMsg && lastMsg._placeholder) {
-            self.messages.pop();
-          }
-
-          // 显示错误消息
-          self.addMessage('assistant', '**错误**: ' + Utils.escapeHTML(err.message || '请求失败'));
-
-          // P0-8: 从 DOM 获取按钮引用
-          var sBtn = document.getElementById('btn-send');
-          var stpBtn = document.getElementById('btn-stop');
-          if (sBtn) sBtn.classList.remove('hidden');
-          if (stpBtn) stpBtn.classList.add('hidden');
-        },
-      });
+        fetch((API.BASE_URL || 'http://127.0.0.1:18789') + '/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (API.AUTH_TOKEN || 'ziyouniao-local-token-2026') },
+          body: JSON.stringify({
+            model: 'openclaw',
+            messages: [{ role: 'user', content: classificationPrompt }],
+            max_tokens: 50,
+            stream: false
+          }),
+          signal: AbortSignal.timeout(15000)
+        })
+          .then(function (res) {
+            if (!res.ok) throw new Error('Classification HTTP ' + res.status);
+            return res.json();
+          })
+          .then(function (data) {
+            if (genId !== _generationId) return;
+            var content = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+            var expertId = content.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+            var validIds = ['architect', 'fe-dev', 'electron', 'db', 'security', 'payment', 'devops', 'content', 'seo', 'data'];
+            if (validIds.indexOf(expertId) >= 0) {
+              // 更新占位消息为路由结果提示
+              var msgIdx = self.messages.length - 1;
+              if (msgIdx >= 0 && self.messages[msgIdx] && self.messages[msgIdx]._placeholder) {
+                self.messages[msgIdx].content = '🤖 已自动匹配专家：' + expertId + '，正在等待回复...';
+              }
+              doSendWithAgent(expertId);
+            } else {
+              // 分类返回了无效ID，回退到主对话
+              var msgIdx = self.messages.length - 1;
+              if (msgIdx >= 0 && self.messages[msgIdx] && self.messages[msgIdx]._placeholder) {
+                self.messages[msgIdx].content = '🤖 未找到匹配专家，切换至主对话...';
+              }
+              doSendWithAgent('');
+            }
+          })
+          .catch(function (err) {
+            console.warn('[Chat] Auto-routing failed:', err && err.message);
+            var msgIdx = self.messages.length - 1;
+            if (msgIdx >= 0 && self.messages[msgIdx] && self.messages[msgIdx]._placeholder) {
+              self.messages[msgIdx].content = '🤖 自动路由失败，切换至主对话...';
+            }
+            doSendWithAgent('');
+          });
+      } else {
+        doSendWithAgent(agentId);
+      }
     },
 
     /**
