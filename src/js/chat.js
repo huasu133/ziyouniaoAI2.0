@@ -40,6 +40,11 @@
     _abortController: null,
 
     /**
+     * 自动摘要防抖计数器，用于取消过期请求
+     */
+    _summaryGenerationId: 0,
+
+    /**
      * 是否禁止自动滚动（恢复对话时使用）
      */
     suppressAutoScroll: false,
@@ -665,28 +670,34 @@
         return '<ol>' + listItems + '</ol>';
       });
 
-      // 表格 (| col1 | col2 | ...)
-      html = html.replace(/\|(.+?)\|\n\|[-:| ]+\|\n((?:\|.+\|\n?)+)/g, function (match, headerRow, dataRows) {
-        var headers = headerRow.split('|').map(function (h) { return h.trim(); });
-        var rows = dataRows.trim().split('\n');
-        var tableHtml = '<table><thead><tr>';
-        for (var hi = 0; hi < headers.length; hi++) {
-          tableHtml += '<th>' + headers[hi] + '</th>';
-        }
-        tableHtml += '</tr></thead><tbody>';
-        for (var ri = 0; ri < rows.length; ri++) {
-          var cells = rows[ri].split('|').map(function (c) { return c.trim(); });
-          tableHtml += '<tr>';
-          for (var ci = 0; ci < cells.length; ci++) {
-            if (cells[ci] !== '') {
-              tableHtml += '<td>' + cells[ci] + '</td>';
-            }
+      // 表格 (| col1 | col2 | ...) — 避开 <pre> 包裹的内容
+      var TABLE_REGEX = /\|(.+?)\|\n\|[-:| ]+\|\n((?:\|.+\|\n?)+)/g;
+      var tableParts = html.split(/(<pre>[\s\S]*?<\/pre>)/g);
+      for (var tp = 0; tp < tableParts.length; tp++) {
+        if (tableParts[tp].startsWith('<pre>')) continue;
+        tableParts[tp] = tableParts[tp].replace(TABLE_REGEX, function (match, headerRow, dataRows) {
+          var headers = headerRow.split('|').map(function (h) { return h.trim(); });
+          var rows = dataRows.trim().split('\n');
+          var tableHtml = '<table><thead><tr>';
+          for (var hi = 0; hi < headers.length; hi++) {
+            tableHtml += '<th>' + headers[hi] + '</th>';
           }
-          tableHtml += '</tr>';
-        }
-        tableHtml += '</tbody></table>';
-        return tableHtml;
-      });
+          tableHtml += '</tr></thead><tbody>';
+          for (var ri = 0; ri < rows.length; ri++) {
+            var cells = rows[ri].split('|').map(function (c) { return c.trim(); });
+            tableHtml += '<tr>';
+            for (var ci = 0; ci < cells.length; ci++) {
+              if (cells[ci] !== '') {
+                tableHtml += '<td>' + cells[ci] + '</td>';
+              }
+            }
+            tableHtml += '</tr>';
+          }
+          tableHtml += '</tbody></table>';
+          return tableHtml;
+        });
+      }
+      html = tableParts.join('');
 
       // 行内代码 (`) — 内部已是转义后的安全内容
       html = html.replace(/`([^`]+)`/g, function (match, code) {
@@ -708,15 +719,19 @@
       html = html.replace(/^-{3,}$/gm, '<hr>');
 
       // 图片 ![alt](url) — 必须在链接之前处理，避免 `!` 被链接正则误吞
+      // 只允许 https?: 和 data:image/ 协议，其他 URL 渲染为普通链接
       html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function (match, alt, url) {
         var safeUrl = Utils.escapeHTML(url);
-        return '<img src="' + safeUrl + '" alt="' + Utils.escapeHTML(alt || '图片') + '" style="max-width:100%;border-radius:6px;margin:4px 0;">';
+        if (/^https?:\/\//i.test(url) || /^data:image\//i.test(url)) {
+          return '<img src="' + safeUrl + '" alt="' + Utils.escapeHTML(alt || '图片') + '" style="max-width:100%;border-radius:6px;margin:4px 0;">';
+        }
+        return '<a href="' + safeUrl + '" target="_blank" rel="noopener">' + Utils.escapeHTML(alt || url) + '</a>';
       });
 
       // 链接 [text](url) — 仅允许 http/https/mailto/data 协议
       html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function (match, text, url) {
         // P2: 允许锚点和相对路径
-        var safeUrl = /^(https?:|mailto:|data:|#|\/)/i.test(url) ? Utils.escapeHTML(url) : '#blocked';
+        var safeUrl = /^(https?:|mailto:|#|\/)/i.test(url) ? Utils.escapeHTML(url) : '#blocked';
         return '<a href="' + safeUrl + '" target="_blank" rel="noopener noreferrer">' + text + '</a>';
       });
 
@@ -804,6 +819,7 @@
      */
     _generateSummaryAndName: function () {
       if (this.messages.length < 2) return;
+      var genId = ++this._summaryGenerationId;
       var tabId = this.currentTabId;
       var prompt = '';
       for (var i = 0; i < this.messages.length; i++) {
@@ -825,6 +841,7 @@
       })
         .then(function (res) { return res.json(); })
         .then(function (data) {
+          if (genId !== self._summaryGenerationId) return; // 已过期
           var result = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
           // P1: 用最后出现的 --- 分隔，避免 AI 响应正文中含 --- 导致错位
           var lastSep = result.lastIndexOf('---');

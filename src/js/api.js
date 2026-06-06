@@ -48,7 +48,7 @@
             if (!response.ok) {
               // 5xx 非流式错误可重试
               if (response.status >= 500 && attempt <= 2) {
-                return new Promise(function (r) { setTimeout(r, 1000 * attempt); }).then(function () { doFetch(attempt + 1); });
+                return new Promise(function (r) { setTimeout(r, 1000 * attempt); }).then(function () { return doFetch(attempt + 1); });
               }
               throw new Error('HTTP ' + response.status);
             }
@@ -115,7 +115,7 @@
           if (err.name === 'AbortError') { onDone('(已停止)'); }
           // 网络错误重试（连接级别，非流式）
           else if (attempt <= 2 && err.message !== 'Stream timeout') {
-            setTimeout(function () { doFetch(attempt + 1); }, 1000 * attempt);
+            return new Promise(function (r) { setTimeout(r, 1000 * attempt); }).then(function () { return doFetch(attempt + 1); });
           }
           else { try { onError(err); } catch (_) {} }
         });
